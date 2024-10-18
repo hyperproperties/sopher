@@ -1,5 +1,5 @@
 # Sopher
-Hypercontracts in Go supporting HyperLTL contractual specifications for functions and HyperCTL* select constructs.
+Runtime Verification of Probabilistic Time-Sensitive Hypercontracts defined using hyper hoare logic in Go.
 
 ## Quickstart
 
