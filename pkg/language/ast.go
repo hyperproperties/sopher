@@ -1,0 +1,122 @@
+package language
+
+type Node interface{}
+
+type Contract struct {
+	regions []Region
+}
+
+type Region struct {
+	name        []string
+	obligations []Node
+}
+
+type Universal struct {
+	variables []string
+	assertion Node
+}
+
+type Existential struct {
+	variables []string
+	assertion Node
+}
+
+type Assumption struct {
+	assertion Node
+}
+
+type Guarantee struct {
+	assertion Node
+}
+
+type GoExpresion struct {
+	code string
+}
+
+type PredicateExpression[T any] struct {
+	predicate func(assignments []T) bool
+}
+
+type ProbabilisticQuantifier struct {
+	event Node // P( event )
+}
+
+type ConditionalProbabilityQuantifier struct {
+	event, given Node // P( event | given )
+}
+
+type ConstantNumber struct {
+	value float32
+}
+
+type Group struct {
+	node Node
+}
+
+func NewContract(regions ...Region) Contract {
+	return Contract{
+		regions: regions,
+	}
+}
+
+func NewRegion(name []string, obligations []Node) Region {
+	return Region{
+		name:        name,
+		obligations: obligations,
+	}
+}
+
+func NewUniversal(variables []string, assertion Node) Universal {
+	return Universal{
+		variables: variables,
+		assertion: assertion,
+	}
+}
+
+func NewExistential(variables []string, assertion Node) Existential {
+	return Existential{
+		variables: variables,
+		assertion: assertion,
+	}
+}
+
+func NewAssumption(assertion Node) Assumption {
+	return Assumption{
+		assertion: assertion,
+	}
+}
+
+func NewGuarantee(assertion Node) Guarantee {
+	return Guarantee{
+		assertion: assertion,
+	}
+}
+
+func NewProbabilisticQuantifier(body Node) ProbabilisticQuantifier {
+	return ProbabilisticQuantifier{
+		event: body,
+	}
+}
+
+func NewConditionalProbabilityQuantifier(event, given Node) ConditionalProbabilityQuantifier {
+	return ConditionalProbabilityQuantifier{
+		event: event,
+		given: given,
+	}
+}
+
+func Number(value float32) ConstantNumber {
+	return ConstantNumber{value}
+}
+
+func NewPredicateExpression[T any](predicate func(assignments []T) bool) PredicateExpression[T] {
+	return PredicateExpression[T]{
+		predicate: predicate,
+	}
+}
+
+func NewGroup(node Node) Group {
+	return Group{
+		node: node,
+	}
+}

@@ -6,17 +6,15 @@ _Non-interference_: A program satisfies noninterference when the outputs observe
 ```
 
 ```go
-// forall: t0 t1
-// assume: t0.high == t1.high
-// guarantee: t0.ret == t2.ret
+// assume forall t0 t1. t0.high == t1.high
+// guarantee forall t0 t1. t0.ret == t2.ret
 func Foo(low, high int) int { ... }
 ```
 
 or
 
 ```go
-// forall: t0 t1
-// guarantee: !(t0.high == t1.high) || t0.ret == t2.ret
+// guarantee forall t0 t1. !(t0.high == t1.high) || t0.ret == t2.ret
 func Foo(low, high int) int { ... }
 ```
 
@@ -31,8 +29,7 @@ P_{π, π'}(π =^L_{in} π' | π =^H_{out} π') > 0.99
 > The probability of choosing random assignments to `π` and `π'` which satisfies the non-interference hyperproperty is 99%. Allowing 1% of all random assignments to break non-interference.
 
 ```go
-// forall: t0 t1
-// guarantee: probability({t2}, t2.high = t0.high && t2.ret == t1.ret) > 0.99
+// guarantee forall t0 t1. probability({t2}, t2.high = t0.high && t2.ret == t1.ret) > 0.99
 func Foo(low, high int) int { ... }
 ```
 
@@ -45,9 +42,7 @@ _Generalized noninterference_: Allows for non-determinism in low-observable beha
 ```
 
 ```go
-// forall: t0 t1
-// exists: t2
-// guarantee: t2.high = t0.high && t2.ret == t1.ret
+// guarantee forall t0 t1. exists t2. t2.high = t0.high && t2.ret == t1.ret
 func Foo(low, high int) int {
     ...
 }
@@ -62,8 +57,7 @@ A probabilistic interpretation of this hyperproperty could be that for any rando
 > For all pairs of  `π` and  `π'` the probability of choosing a random assignment to `π''` which satisfies the hyperproperty is 95%.
 
 ```go
-// forall: t0 t1
-// guarantee: probability({t2}, t2.high = t0.high, t2.ret == t1.ret) > 95%
+// guarantee forall t0 t1. probability({t2}, t2.high = t0.high, t2.ret == t1.ret) > 95%
 func Foo(low, high int) int {
     ...
 }
@@ -77,17 +71,15 @@ _Observational determinism_: A (nondeterministic) program satisfies observationa
 ```
 
 ```go
-// forall: t0 t1
-// assume: t0.low == t1.low
-// guarantee: t0.ret == t2.ret
+// assume forall t0 t1. t0.low == t1.low
+// guarantee forall t0 t1. t0.ret == t2.ret
 func Foo(low, high int) int { ... }
 ```
 
 or
 
 ```go
-// forall: t0 t1
-// guarantee: !(t0.low == t1.low) || t0.ret == t2.ret
+// guarantee forall t0 t1. !(t0.low == t1.low) || t0.ret == t2.ret
 func Foo(low, high int) int { ... }
 ```
 
@@ -114,17 +106,15 @@ _Declassification_: Some programs need to reveal secret information to fulfill f
 ```
 
 ```go
-// forall: t0 t1
-// guarantee: !(t0.user == t1.user && t0.password == t1.password) || t0.ret == t1.ret
+// guarantee forall t0 t1. !(t0.user == t1.user && t0.password == t1.password) || t0.ret == t1.ret
 func Authenticate(user, password string) bool { ... }
 ```
 
 or
 
 ```go
-// forall: t0 t1
-// assume: t0.user == t1.user && t0.password == t1.password
-// guarantee: t0.ret == t1.ret
+// assume forall t0 t1. t0.user == t1.user && t0.password == t1.password
+// guarantee forall t0 t1. t0.ret == t1.ret
 func Authenticate(user, password string) bool { ... }
 ```
 
@@ -177,6 +167,13 @@ If the response length is less than 100 bytes then more than half of the respons
 func Request() []byte { ... }
 ```
 
+# Time-Sensitive Side-Channel
+_Time-Sensitive Side-Channel_: Like non-interference we dont want information of confidential material leaked though a low observable channel. In some case we want some information leaked as in the case of declassification - we want to be able to tell whether the password was correct or not. However, in the case of incorrect passwords, we dont want to leak how correct the incorrect password was and at what character of the password did the password become incorrect. A naive password checker would act like a string compare and return a result immediately when the password was found to be incorrect. However, in the case of very long passwords and where the time of comparing is measureable so would the time to reach the result of a incorrect password also be measureable. This highlights one case where time is necessary for a secure information flow policy (hyperproperty).
+
+```go
+
+```
+
 # Erasure (TODO: Maybe requires custom composition operation to be done well?)
 _Erasure_: Refers to the process of completely and irretrievably deleting data or information from a storage medium to prevent its recovery or access. This process often involves overwriting the original data with random values or zeros, ensuring that any remnants of the original content cannot be reconstructed. Effective erasure is crucial for protecting sensitive information and maintaining data privacy in various applications, including personal computing and enterprise data management.
 
@@ -184,7 +181,6 @@ _Erasure_: Refers to the process of completely and irretrievably deleting data o
 func Read(path string) ([]byte, bool) { ... }
 
 // compose: r Read, e Erase
-// forall: t0 t1
-// guarantee: (t0.r.path == t0.r.path && ) 
+// guarantee forall t0 t1. (t0.r.path == t0.r.path && ) 
 func Erase(path string) { ... }
 ```

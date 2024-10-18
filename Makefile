@@ -7,5 +7,11 @@ build:
 test:
 	go test ./...
 
+fuzz:
+	go test -fuzz=Fuzz ./pkg/language
+
 fmt:
 	go fmt ./...
+
+examples:
+	go run ./cmd/examples/password/main.go
