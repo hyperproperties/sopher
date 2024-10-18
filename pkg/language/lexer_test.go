@@ -1,7 +1,6 @@
 package language
 
 import (
-	"fmt"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -29,8 +28,7 @@ func TestConsumeWord(t *testing.T) {
 	assert.Equal(t, len(str), lookahead)
 
 	lexer.consumeWord(prefix, skip, body, suffix)
-	a, exists := lexer.next()
-	fmt.Println(string(a))
+	_, exists := lexer.next()
 	assert.False(t, exists)
 }
 
@@ -148,7 +146,6 @@ assume: forall e0.in >= 0
 	for idx := range tokens {
 		classes[idx] = tokens[idx].class
 	}
-	t.Log(tokens)
 	assert.ElementsMatch(t, classes, expected)
 }
 
@@ -337,7 +334,6 @@ func TestLexClasses(t *testing.T) {
 			for idx := range tokens {
 				classes[idx] = tokens[idx].class
 			}
-			t.Log(tokens)
 			assert.ElementsMatch(t, classes, tt.classes)
 		})
 	}
@@ -380,12 +376,10 @@ func Self(in a) int {
 	fileMulti, err := parser.ParseFile(fset, "", sourceMulti, parser.ParseComments)
 	assert.Nil(t, err)
 	tokensMulti := iterx.Collect(LexGo(fileMulti.Decls[0].(*ast.FuncDecl).Doc))
-	t.Log(tokensMulti)
 
 	fileSingle, err := parser.ParseFile(fset, "", sourceSingle, parser.ParseComments)
 	assert.Nil(t, err)
 	tokensSingle := iterx.Collect(LexGo(fileSingle.Decls[0].(*ast.FuncDecl).Doc))
-	t.Log(tokensSingle)
 
 	assert.ElementsMatch(t, tokensMulti, tokensSingle)
 }
