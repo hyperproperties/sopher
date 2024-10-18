@@ -1,5 +1,5 @@
 # Sopher
-Runtime Verification of Probabilistic Time-Sensitive Hypercontracts defined using hyper hoare logic in Go.
+Runtime verification of Probabilistic time-sensitive hypercontracts defined using hyper hoare logic in Go.
 
 ## Quickstart
 
