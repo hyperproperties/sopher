@@ -1,3 +1,6 @@
+# Hyper Hoare Logic
+> Hyper Hoare Logic then establishes hyper-triples of the form $\{𝑃\} 𝐶 \{𝑄\}$, where $P$ and $𝑄$ are hyper-assertions. Such a hyper-triple is valid iff for any set of initial states $𝑆$ that satisfies 𝑃, the set of all final states that can be reached by executing $𝐶$ in some state from $𝑆$ satisfies $𝑄$.
+
 # Probabilitic Hyper-Assertions
 Probabilistic Hyper-Assertions (PHA) are assertions that interact with a continuously growing set of sampled states, along with probabilitistic assignments, universal and exsistential quantification. These assertions can have one of three possible outcomes: _accepted_, _rejected_, or _inconclusive_. 
 - An _accepted_ assertion means that the current set of states satisfies the assertion.
@@ -46,18 +49,3 @@ Variables   = Identifier { Identifier } .
 
 - _Assumption:_ Probabilistic hyper-assertions on state excluding time and return values.  
 - _Guarantee:_ Probabilistic hyper-assertions on state including time and return values.
-
-## Examples
-There are multiple example for very common cases of hyperproperties. To highlight the usage of hypercontracts with both probabilities and time-sensitivity of the execution in case where service level agreements are important.
-
-If the request is by an admin then if the response length is less than 100 bytes then more than half of the response times will be less than 0.2 seconds. However, if is not an admin, then we have no guarantee on anything.
-```go
-// region: Admin
-// forall: e
-// assume: e.admin
-// guarantee: probability({t}, t.time <= 0.2, len(t.ret0) < 100) >= 0.5
-// region: User
-// forall: e
-// assume: !e.admin
-func Request(admin bool) []byte { ... }
-```

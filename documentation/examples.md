@@ -6,19 +6,22 @@ _Non-interference_: A program satisfies noninterference when the outputs observe
 ```
 
 ```go
-// assume forall t0 t1. t0.high == t1.high
-// guarantee forall t0 t1. t0.ret == t2.ret
+// guarantee: forall t0 t1. !(t0.high == t1.high) || t0.ret == t2.ret
 func Foo(low, high int) int { ... }
 ```
 
 or
 
 ```go
-// guarantee forall t0 t1. !(t0.high == t1.high) || t0.ret == t2.ret
+// assume: forall t0 t1. t0.high == t1.high
+// guarantee: forall t0 t1. t0.ret == t2.ret
+// region: All other
 func Foo(low, high int) int { ... }
 ```
 
-The former allows an easier generation of paired execution using the `assume` which allows the generation of high values in such a way that any pair following the assume is relevant for the guarantee.
+> Caution: The "All other" region is required because the contract wiuld otherwise disallow all invocations where two executions do not have a matching high input.
+
+The former allows an easier generation of paired execution using the `assume` which allows the generation of high values in such a way that any pair following the assume: is relevant for the guarantee.
 
 A probabilistic interpretation of the hyperproperty could be that for any two random assignments there is a probability of non-interference to be satisfied some percentage of the time. However, we will allow the property to be broken some times.
 
@@ -29,10 +32,32 @@ P_{π, π'}(π =^L_{in} π' | π =^H_{out} π') > 0.99
 > The probability of choosing random assignments to `π` and `π'` which satisfies the non-interference hyperproperty is 99%. Allowing 1% of all random assignments to break non-interference.
 
 ```go
-// guarantee forall t0 t1. probability({t2}, t2.high = t0.high && t2.ret == t1.ret) > 0.99
+// guarantee: forall t0 t1. probability t2. t2.high = t0.high && t2.ret == t1.ret; > 0.99
 func Foo(low, high int) int { ... }
 ```
 
+# Regions
+_Regions_: Allows a contract to be split into multiple parts like that of partition testing. For any invocation of the function under test the invocation's inputs must fall inside atleast one region. Ergo, all assumptions of atleast one region must be satisfied. Then for each region the guarantees must be satisfied. Even if only a single region has an unsaitfied guarantee there is a breach in the contract. A region without an assumption is the same as an assumption accepting every input. Likewise, no guaratee states no requirements on the output and therefore everything deemed acceptable.
+
+```go
+// region: Positive
+// assume: forall e0. e0.input > 0
+// guarantee: forall e0. e0.ret0 > 0
+// region: Zero
+// assume: forall e0. e0.input == 0
+// guarantee: forall e0.ret0 == 0
+// region: Negative
+// assume: forall e0. e0.input < 0
+// guarantee: forall e0. e0.ret0 > 0
+func Abs(input int) int {
+    if input < 0 {
+        return -input
+    }
+    return input
+}
+```
+
+The absolute function ahs three regions: _Positive_, _Zero_, and _Negative_. All of these regions have atleast one assumption and guaratee.
 
 # Generalized Non-interference
 _Generalized noninterference_: Allows for non-determinism in low-observable behavior while ensuring that low-security outputs remain unchanged in response to high-security inputs. This can be seen as the same high inputs only ones has to have the same low return value. Therfore, it in some way, relaxes the non-interference requirement and allows non-determinism.
@@ -42,7 +67,7 @@ _Generalized noninterference_: Allows for non-determinism in low-observable beha
 ```
 
 ```go
-// guarantee forall t0 t1. exists t2. t2.high = t0.high && t2.ret == t1.ret
+// guarantee: forall t0 t1. exists t2. t2.high = t0.high && t2.ret == t1.ret
 func Foo(low, high int) int {
     ...
 }
@@ -57,7 +82,7 @@ A probabilistic interpretation of this hyperproperty could be that for any rando
 > For all pairs of  `π` and  `π'` the probability of choosing a random assignment to `π''` which satisfies the hyperproperty is 95%.
 
 ```go
-// guarantee forall t0 t1. probability({t2}, t2.high = t0.high, t2.ret == t1.ret) > 95%
+// guarantee: forall t0 t1. probability t2. t2.high = t0.high; | t2.ret == t1.ret; > 95%
 func Foo(low, high int) int {
     ...
 }
@@ -71,19 +96,19 @@ _Observational determinism_: A (nondeterministic) program satisfies observationa
 ```
 
 ```go
-// assume forall t0 t1. t0.low == t1.low
-// guarantee forall t0 t1. t0.ret == t2.ret
+// assume: forall t0 t1. t0.low == t1.low
+// guarantee: forall t0 t1. t0.ret == t2.ret
 func Foo(low, high int) int { ... }
 ```
 
 or
 
 ```go
-// guarantee forall t0 t1. !(t0.low == t1.low) || t0.ret == t2.ret
+// guarantee: forall t0 t1. !(t0.low == t1.low) || t0.ret == t2.ret
 func Foo(low, high int) int { ... }
 ```
 
-The former allows an easier generation of paired execution using the `assume` which allows the generation of high values in such a way that any pair following the assume is relevant for the guarantee.
+The former allows an easier generation of paired execution using the `assume` which allows the generation of high values in such a way that any pair following the assume: is relevant for the guarantee.
 
 A probabilistic interpretation of this hyperproperty could be that for all `π` the probability of randomly choosing a `π'` where observational determinism is satisfied is 80%. Meaning that the chance of any execution to be observational deterministic is atleast 80%.
 
@@ -94,7 +119,7 @@ P_{π, π'}(π =^L_{in} π' | π =^L_{out} π') > 0.8
 > for all executions a random assignment to `π'` has at least 80% chance of satisfying observational determinism.
 
 ```go
-// guarantee: probability({t0, t1}, t0.low == t1.low, t0.ret == t1.ret) > 80%
+// guarantee: probability t0 t1. t0.low == t1.low; | t0.ret == t1.ret; > 80%
 func Foo(low, high int) int { ... }
 ```
 
@@ -106,15 +131,15 @@ _Declassification_: Some programs need to reveal secret information to fulfill f
 ```
 
 ```go
-// guarantee forall t0 t1. !(t0.user == t1.user && t0.password == t1.password) || t0.ret == t1.ret
+// guarantee: forall t0 t1. !(t0.user == t1.user && t0.password == t1.password) || t0.ret == t1.ret
 func Authenticate(user, password string) bool { ... }
 ```
 
 or
 
 ```go
-// assume forall t0 t1. t0.user == t1.user && t0.password == t1.password
-// guarantee forall t0 t1. t0.ret == t1.ret
+// assume: forall t0 t1. t0.user == t1.user && t0.password == t1.password
+// guarantee: forall t0 t1. t0.ret == t1.ret
 func Authenticate(user, password string) bool { ... }
 ```
 
@@ -128,6 +153,13 @@ A probabilistic interpretation of declassification could be an example where the
 
 __I cannot construct a meaningful example of probabilistic declassification__
 
+# Associative Property
+`(x • y) • z = x • (y • z)`
+
+```math
+∀π π' π'' π'''. ((π'.lhs = π.ret ∧ π'''.rhs = π''.ret) ∧ (π.lhs = π'''.lhs ∧ π.rhs = π''.lhs ∧ π'.rhs = π''.rhs)) → π'.ret = π'''.ret
+```
+
 # Maximum Mean Response Time
 _Maximum Mean Response Time_: This is a common type of service level agreement (SLA) where a service is required to respond, on average, within a specified time limit (upper bound). Unlike traditional properties, which describe individual system behaviors, hyperproperties allow reasoning over the mean response time across multiple executions of the system. This enables probabilistic analysis of response times and similar performance metrics. With probabilities we relax the mean to a probability which is sufficient since we rarely what an equality check of a SLA.
 
@@ -139,31 +171,31 @@ P_{π}(C(π)) ⋈ p
 
 Atleast 50% of all responses does not exceed a response time of 0.5 seconds.
 ```go
-// guarantee: probability({t}, t.time <= 0.5) >= 0.5
+// guarantee: probability t. t.time <= 0.5; >= 0.5
 func Request() []byte { ... }
 ```
 
 Atleast 95% of all responses does not exceed a response time of 0.1 seconds.  
 ```go
-// guarantee: probability({t}, t.time <= 0.1) >= 0.95
+// guarantee: probability t. t.time <= 0.1; >= 0.95
 func Request() []byte { ... }
 ```
 
 The slowest 5% does not exceed a response time of 1 second.
 ```go
-// guarantee: probability({t}, t.time <= 1) <= 0.05
+// guarantee: probability t. t.time <= 1; <= 0.05
 func Request() []byte { ... }
 ```
 
 It is more likely to get a response in 0.1 seconds than more than 2 seconds.
 ```go
-// guarantee: probability({t}, t.time <= 0.1) > probability({t}, t.time > 2)
+// guarantee: probability t. t.time <= 0.1; > probability({t}, t.time > 2)
 func Request() []byte { ... }
 ```
 
 If the response length is less than 100 bytes then more than half of the response times will be less than 0.2 seconds.
 ```go
-// guarantee: probability({t}, t.time <= 0.2, len(t.ret0) < 100) >= 0.5
+// guarantee: probability t. t.time <= 0.2; | len(t.ret0) < 100; >= 0.5
 func Request() []byte { ... }
 ```
 
@@ -181,6 +213,6 @@ _Erasure_: Refers to the process of completely and irretrievably deleting data o
 func Read(path string) ([]byte, bool) { ... }
 
 // compose: r Read, e Erase
-// guarantee forall t0 t1. (t0.r.path == t0.r.path && ) 
+// guarantee: forall t0 t1. (t0.r.path == t0.r.path && ) 
 func Erase(path string) { ... }
 ```

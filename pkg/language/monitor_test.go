@@ -37,7 +37,7 @@ func TestMonitorNonInterference(t *testing.T) {
 			return !(e1.low == e2.low && e1.high != e2.high) || (e1.ret0 == e2.ret0)
 		},
 	)
-	universal := NewUniversalMonitor(0, 2, &predicate)
+	universal := NewUniversalMonitor(0, 2, predicate)
 
 	executions := iterx.Collect(executor)
 	satisfied := universal.Increment(make([]Execution, 2), executions, len(executions))
@@ -78,7 +78,7 @@ func TestMonitorInterference(t *testing.T) {
 			return !(e1.low == e2.low && e1.high != e2.high) || (e1.ret0 == e2.ret0)
 		},
 	)
-	universal := NewUniversalMonitor(0, 2, &predicate)
+	universal := NewUniversalMonitor(0, 2, predicate)
 
 	executions := iterx.Collect(executor)
 	satisfied := universal.Increment(make([]Execution, 2), executions, len(executions))
@@ -116,8 +116,8 @@ func TestMonitorGeneralisedNonInterference(t *testing.T) {
 			return e3.high == e1.high && e3.ret0 == e2.ret0
 		},
 	)
-	existential := NewExistentialMonitor(2, 1, &predicate)
-	universal := NewUniversalMonitor(0, 2, &existential)
+	existential := NewExistentialMonitor(2, 1, predicate)
+	universal := NewUniversalMonitor(0, 2, existential)
 
 	executions := iterx.Collect(executor)
 	satisfied := universal.Increment(make([]Execution, 3), executions, len(executions))
@@ -158,8 +158,8 @@ func TestMonitorGeneralisedInterference(t *testing.T) {
 			return e3.high == e1.high && e3.ret0 == e2.ret0
 		},
 	)
-	existential := NewExistentialMonitor(2, 1, &predicate)
-	universal := NewUniversalMonitor(0, 2, &existential)
+	existential := NewExistentialMonitor(2, 1, predicate)
+	universal := NewUniversalMonitor(0, 2, existential)
 
 	executions := iterx.Collect(executor)
 	satisfied := universal.Increment(make([]Execution, 3), executions, len(executions))

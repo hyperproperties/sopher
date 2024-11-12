@@ -23,8 +23,12 @@ func Print(ast Node) string {
 			}
 			builder.WriteString(": ")
 
-			for idx := range cast.obligations {
-				recursive(cast.obligations[idx])
+			for idx := range cast.assumptions {
+				recursive(cast.assumptions[idx])
+			}
+
+			for idx := range cast.guarantees {
+				recursive(cast.guarantees[idx])
 			}
 		case Universal:
 			builder.WriteString("forall")

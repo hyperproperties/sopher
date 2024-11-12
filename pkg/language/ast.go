@@ -8,7 +8,8 @@ type Contract struct {
 
 type Region struct {
 	name        []string
-	obligations []Node
+	assumptions []Node
+	guarantees  []Node
 }
 
 type Universal struct {
@@ -59,10 +60,11 @@ func NewContract(regions ...Region) Contract {
 	}
 }
 
-func NewRegion(name []string, obligations []Node) Region {
+func NewRegion(name []string, assumptions, guarantees []Node) Region {
 	return Region{
 		name:        name,
-		obligations: obligations,
+		assumptions: assumptions,
+		guarantees:  guarantees,
 	}
 }
 
@@ -102,6 +104,12 @@ func NewConditionalProbabilityQuantifier(event, given Node) ConditionalProbabili
 	return ConditionalProbabilityQuantifier{
 		event: event,
 		given: given,
+	}
+}
+
+func NewGoExpression(code string) GoExpresion {
+	return GoExpresion{
+		code: code,
 	}
 }
 

@@ -137,6 +137,14 @@ func Collect[T any](iterator iter.Seq[T]) (slice []T) {
 	return
 }
 
+func CollectMap[T comparable, U any](iterator iter.Seq2[T, U]) map[T]U {
+	mapping := map[T]U{}
+	for key, value := range iterator {
+		mapping[key] = value
+	}
+	return mapping
+}
+
 func BufferedPull[T any](seq iter.Seq[T]) (
 	next func() (T, bool),
 	peek func(lookahead int) (T, bool),

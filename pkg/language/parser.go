@@ -49,7 +49,7 @@ func (parser *Parser) consume(classes ...TokenClass) (Token, bool) {
 	return Token{}, false
 }
 
-func (parser *Parser) Parse() Node {
+func (parser *Parser) Parse() Contract {
 	return parser.contract()
 }
 
@@ -57,8 +57,8 @@ func (parser *Parser) contract() Contract {
 	var regions []Region
 
 	if parser.match(AssumeToken, GuaranteeToken) {
-		obligations := parser.obligations()
-		region := NewRegion(nil, obligations)
+		assumptions, guarantees := parser.obligations()
+		region := NewRegion(nil, assumptions, guarantees)
 		regions = append(regions, region)
 	}
 
@@ -88,26 +88,27 @@ func (parser *Parser) region() Region {
 		panic("expected a scope delimiter token")
 	}
 
-	obligations := parser.obligations()
+	assumptions, guarantees := parser.obligations()
 
 	return Region{
 		name:        name,
-		obligations: obligations,
+		assumptions: assumptions,
+		guarantees:  guarantees,
 	}
 }
 
-func (parser *Parser) obligations() (obligations []Node) {
+func (parser *Parser) obligations() (assumptions, guarantees []Node) {
 	for {
 		if parser.match(AssumeToken) {
-			obligations = append(obligations, parser.assumption())
+			assumptions = append(assumptions, parser.assumption())
 		} else if parser.match(GuaranteeToken) {
-			obligations = append(obligations, parser.guarantee())
+			guarantees = append(guarantees, parser.guarantee())
 		} else {
 			break
 		}
 	}
 
-	return obligations
+	return assumptions, guarantees
 }
 
 func (parser *Parser) assumption() Assumption {

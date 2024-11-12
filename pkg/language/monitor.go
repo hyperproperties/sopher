@@ -30,6 +30,8 @@ type IncrementalMonitor[T any] interface {
 	//   latest assignments and the incremented sequence of elements. This value
 	//   reflects the outcome of the monitoring logic after the increment.
 	Increment(assignments []T, slice []T, added int) LiftedBoolean
+
+	Size() int
 }
 
 // Compile time checking interface implementations:
@@ -37,6 +39,7 @@ var (
 	_ IncrementalMonitor[any] = (*PredicateMonitor[any])(nil)
 	_ IncrementalMonitor[any] = (*UniversalMonitor[any])(nil)
 	_ IncrementalMonitor[any] = (*ExistentialMonitor[any])(nil)
+	_ IncrementalMonitor[any] = (*TrueMonitor[any])(nil)
 )
 
 func IncrementalMonitorFromAST[T any](node Node) IncrementalMonitor[T] {
@@ -46,26 +49,40 @@ func IncrementalMonitorFromAST[T any](node Node) IncrementalMonitor[T] {
 		case Universal:
 			body := recurse(cast.assertion, variables+len(cast.variables))
 			monitor := NewUniversalMonitor(variables, len(cast.variables), body)
-			return &monitor
+			return monitor
 		case Existential:
 			body := recurse(cast.assertion, variables+len(cast.variables))
 			monitor := NewExistentialMonitor(variables, len(cast.variables), body)
-			return &monitor
+			return monitor
 		case PredicateExpression[T]:
 			monitor := NewPredicateMonitor(cast.predicate)
-			return &monitor
+			return monitor
 		}
 		panic("unknown or unsupported AST node for the incremental monitor")
 	}
 	return recurse(node, 0)
 }
 
+type TrueMonitor[T any] struct{}
+
+func NewTrueMonitor[T any]() *TrueMonitor[T] {
+	return &TrueMonitor[T]{}
+}
+
+func (monitor TrueMonitor[T]) Increment(_ []T, _ []T, _ int) LiftedBoolean {
+	return LiftedTrue
+}
+
+func (monitor TrueMonitor[T]) Size() int {
+	return 0
+}
+
 type PredicateMonitor[T any] struct {
 	predicate func(assignments []T) bool
 }
 
-func NewPredicateMonitor[T any](predicate func(assignments []T) bool) PredicateMonitor[T] {
-	return PredicateMonitor[T]{
+func NewPredicateMonitor[T any](predicate func(assignments []T) bool) *PredicateMonitor[T] {
+	return &PredicateMonitor[T]{
 		predicate: predicate,
 	}
 }
@@ -74,14 +91,18 @@ func (monitor *PredicateMonitor[T]) Increment(assignments []T, _ []T, _ int) Lif
 	return LiftBoolean(monitor.predicate(assignments))
 }
 
+func (monitor PredicateMonitor[T]) Size() int {
+	return 0
+}
+
 type UniversalMonitor[T any] struct {
 	offset, size int
 	body         IncrementalMonitor[T]
 	result       LiftedBoolean
 }
 
-func NewUniversalMonitor[T any](offset, size int, body IncrementalMonitor[T]) UniversalMonitor[T] {
-	return UniversalMonitor[T]{
+func NewUniversalMonitor[T any](offset, size int, body IncrementalMonitor[T]) *UniversalMonitor[T] {
+	return &UniversalMonitor[T]{
 		offset: offset,
 		size:   size,
 		body:   body,
@@ -104,13 +125,17 @@ func (monitor *UniversalMonitor[T]) Increment(assignments []T, slice []T, added 
 	return LiftedTrue
 }
 
+func (monitor UniversalMonitor[T]) Size() int {
+	return monitor.size + monitor.body.Size()
+}
+
 type ExistentialMonitor[T any] struct {
 	offset, size int
 	body         IncrementalMonitor[T]
 }
 
-func NewExistentialMonitor[T any](offset, size int, body IncrementalMonitor[T]) ExistentialMonitor[T] {
-	return ExistentialMonitor[T]{
+func NewExistentialMonitor[T any](offset, size int, body IncrementalMonitor[T]) *ExistentialMonitor[T] {
+	return &ExistentialMonitor[T]{
 		offset: offset,
 		size:   size,
 		body:   body,
@@ -130,4 +155,8 @@ func (monitor *ExistentialMonitor[T]) Increment(assignments []T, slice []T, adde
 	}
 
 	return LiftedFalse
+}
+
+func (monitor ExistentialMonitor[T]) Size() int {
+	return monitor.size + monitor.body.Size()
 }
