@@ -7,15 +7,15 @@ import (
 	"go/token"
 )
 
-type GoMonitorFactory struct {
+type MonitorFactory struct {
 	packageName string
 	modelName   string
 	offset      int
 	variables   []string
 }
 
-func NewGoMonitorFactory(packageName, modelName string) GoMonitorFactory {
-	return GoMonitorFactory{
+func NewGoMonitorFactory(packageName, modelName string) MonitorFactory {
+	return MonitorFactory{
 		packageName: packageName,
 		modelName:   modelName,
 		offset:      0,
@@ -23,7 +23,7 @@ func NewGoMonitorFactory(packageName, modelName string) GoMonitorFactory {
 	}
 }
 
-func (factory *GoMonitorFactory) Create(node Node) *ast.CallExpr {
+func (factory *MonitorFactory) Create(node Node) *ast.CallExpr {
 	switch cast := node.(type) {
 	case GoExpresion:
 		return factory.NewPredicateMonitorCall(cast)
@@ -44,7 +44,7 @@ func (factory *GoMonitorFactory) Create(node Node) *ast.CallExpr {
 	panic(fmt.Sprintf("unknown node type %t", node))
 }
 
-func (factory *GoMonitorFactory) NewPredicateMonitorCall(expression GoExpresion) *ast.CallExpr {
+func (factory *MonitorFactory) NewPredicateMonitorCall(expression GoExpresion) *ast.CallExpr {
 	// FIXME: Can accidentally define variables not in use. First we have to see what variables are in use and only define those.
 
 	var body []ast.Stmt
@@ -117,7 +117,7 @@ func (factory *GoMonitorFactory) NewPredicateMonitorCall(expression GoExpresion)
 	}
 }
 
-func (factory *GoMonitorFactory) NewUniversalMonitorCall(universal Universal) *ast.CallExpr {
+func (factory *MonitorFactory) NewUniversalMonitorCall(universal Universal) *ast.CallExpr {
 	offset := factory.offset
 	factory.offset += len(universal.variables)
 	factory.variables = append(factory.variables, universal.variables...)
@@ -135,7 +135,7 @@ func (factory *GoMonitorFactory) NewUniversalMonitorCall(universal Universal) *a
 	return call
 }
 
-func (factory *GoMonitorFactory) NewExistentialMonitorCall(existential Existential) *ast.CallExpr {
+func (factory *MonitorFactory) NewExistentialMonitorCall(existential Existential) *ast.CallExpr {
 	offset := factory.offset
 	factory.offset += len(existential.variables)
 	factory.variables = append(factory.variables, existential.variables...)

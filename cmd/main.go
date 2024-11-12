@@ -26,17 +26,17 @@ func main() {
 		sourceFlag = wd
 	}
 
-	contracts := language.NewGoContracts()
-	_, err := contracts.Add(sourceFlag)
+	files := language.NewFiles()
+	err := files.Add(sourceFlag)
 	if err != nil {
 		log.Fatalln("Failed adding", sourceFlag, "to contracts", err)
 	}
 
-	injector := language.NewGoInjector(contracts)
-	injector.Inject()
+	injector := language.NewGoInjector()
+	injector.Files(files.Iterator())
 
 	// Run tests.
 	time.Sleep(15 * time.Second)
 
-	injector.Restore()
+	injector.Restore(files.Iterator())
 }

@@ -1,6 +1,9 @@
 package filesx
 
-import "os"
+import (
+	"errors"
+	"os"
+)
 
 func Move(source, destination string) error {
 	return os.Rename(source, destination)
@@ -16,4 +19,11 @@ func Clear(path string) error {
 
 func Delete(path string) error {
 	return os.Remove(path)
+}
+
+func Exists(path string) bool {
+	if _, err := os.Stat(path); errors.Is(err, os.ErrNotExist) {
+		return false
+	}
+	return true
 }
