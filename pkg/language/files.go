@@ -37,7 +37,7 @@ func (files *Files) AddFile(path string) error {
 	if filepath.Ext(path) == "" {
 		path = strings.Join([]string{path, ".go"}, "")
 	}
-	
+
 	if !filesx.Exists(path) {
 		return ErrFileNotFound
 	}

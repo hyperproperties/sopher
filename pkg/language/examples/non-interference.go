@@ -1,5 +1,7 @@
 package examples
 
+import _ "math"
+
 // guarantee: forall e0 e1. !(e0.highIn == e1.highIn) || (e0.lowOut == e1.lowOut)
 func Retain(lowIn, highIn int) (lowOut, highOut int) {
 	lowOut = lowIn

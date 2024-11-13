@@ -44,6 +44,25 @@ func LexGo(comments *ast.CommentGroup) iter.Seq[Token] {
 	return LexString(builder.String())
 }
 
+func LexDocStrings(docs []string) iter.Seq[Token] {
+	var builder strings.Builder
+
+	for _, text := range docs {
+		if rest, hasPrefix := strings.CutPrefix(text, "/*"); hasPrefix {
+			if rest, hasSuffix := strings.CutSuffix(rest, "*/"); hasSuffix {
+				builder.WriteString(rest)
+			} else {
+				panic("expected go multi-line comment to has both prefix and suffix")
+			}
+		} else if rest, hasPrefix := strings.CutPrefix(text, "//"); hasPrefix {
+			builder.WriteString(rest)
+			builder.WriteRune('\n')
+		}
+	}
+
+	return LexString(builder.String())
+}
+
 func LexString(str string) iter.Seq[Token] {
 	return LexRunes([]rune(str))
 }

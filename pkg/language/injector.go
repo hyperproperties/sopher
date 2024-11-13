@@ -2,15 +2,16 @@ package language
 
 import (
 	"fmt"
-	"go/ast"
 	"go/parser"
-	"go/printer"
 	"go/token"
 	"iter"
 	"os"
+	"path/filepath"
 
+	"github.com/dave/dst"
+	"github.com/dave/dst/decorator"
+	"github.com/dave/dst/dstutil"
 	"github.com/hyperproperties/sopher/pkg/filesx"
-	"golang.org/x/tools/go/ast/astutil"
 )
 
 type Injector struct{}
@@ -19,63 +20,96 @@ func NewGoInjector() Injector {
 	return Injector{}
 }
 
-func (injector Injector) Imports(file *ast.File, fset *token.FileSet, imports map[string]string) {
+func (injector Injector) Imports(file *dst.File, imports map[string]string) {
+	specs := make([]dst.Spec, 0)
+
 	for name, path := range imports {
-		astutil.AddNamedImport(fset, file, name, path)
+		importSpec := &dst.ImportSpec{
+			Name: dst.NewIdent(name),
+			Path: &dst.BasicLit{
+				Kind:  token.STRING,
+				Value: fmt.Sprintf("\"%v\"", path),
+			},
+		}
+
+		file.Imports = append(file.Imports, importSpec)
+		specs = append(specs, importSpec)
+	}
+
+	exists := false
+
+	// import declaration already exist.
+	for _, decl := range file.Decls {
+		if cast, ok := decl.(*dst.GenDecl); ok && cast.Tok == token.IMPORT {
+			cast.Specs = append(cast.Specs, specs...)
+			exists = true
+			break
+		}
+	}
+
+	// No import so we create one.
+	if !exists {
+		genDecl := &dst.GenDecl{
+			Tok:   token.IMPORT,
+			Specs: specs,
+		}
+
+		file.Decls = append([]dst.Decl{genDecl}, file.Decls...)
 	}
 }
 
-func (injector Injector) Model(function *ast.FuncDecl) (string, *ast.GenDecl) {
+func (injector Injector) Model(function *dst.FuncDecl) (string, *dst.GenDecl) {
 	name := function.Name.Name
-	
-	var fields []*ast.Field
-	fields = append(fields, function.Type.Params.List...)
+
+	fields := make([]*dst.Field, 0)
+
+	for _, input := range function.Type.Params.List {
+		fields = append(fields, dst.Clone(input).(*dst.Field))
+	}
 
 	for idx, output := range function.Type.Results.List {
 		if len(output.Names) > 0 {
-			field := &ast.Field{
-				Names: output.Names,
-				Type:  output.Type,
-			}
-			fields = append(fields, field)
+			fields = append(fields, dst.Clone(output).(*dst.Field))
 		} else {
-			ident := ast.NewIdent(fmt.Sprintf("ret%v", idx))
-			field := &ast.Field{
-				Names: []*ast.Ident{ident},
-				Type:  output.Type,
+			field := &dst.Field{
+				Names: []*dst.Ident{
+					dst.NewIdent(fmt.Sprintf("ret%v", idx)),
+				},
+				Type: dst.Clone(output.Type).(dst.Expr),
 			}
 			fields = append(fields, field)
 		}
 	}
 
-	model := &ast.StructType{
-		Fields: &ast.FieldList{
+	model := &dst.StructType{
+		Fields: &dst.FieldList{
 			List: fields,
 		},
 	}
 
-	modelName := name+"_ExecutionModel"
+	modelName := name + "_ExecutionModel"
 
-	return modelName, &ast.GenDecl{
+	return modelName, &dst.GenDecl{
 		Tok: token.TYPE,
-		Specs: []ast.Spec{
-			&ast.TypeSpec{
-				Name: ast.NewIdent(modelName),
+		Specs: []dst.Spec{
+			&dst.TypeSpec{
+				Name: dst.NewIdent(modelName),
 				Type: model,
 			},
 		},
 	}
 }
 
-func (injector Injector) Contract(model string, function *ast.FuncDecl) (string, *ast.GenDecl) {
+func (injector Injector) Contract(model string, function *dst.FuncDecl) (string, *dst.GenDecl) {
 	name := function.Name.Name
 
-	parser := NewParser(LexGo(function.Doc))
+	comments := function.Decs.NodeDecs.Start
+	parser := NewParser(LexDocStrings(comments))
 	contract := parser.Parse()
-	
-	assumptionList := make([]ast.Expr, len(contract.regions[0].assumptions))
-	guaranteeList := make([]ast.Expr, len(contract.regions[0].guarantees))
-	
+
+	assumptionList := make([]dst.Expr, len(contract.regions[0].assumptions))
+	guaranteeList := make([]dst.Expr, len(contract.regions[0].guarantees))
+
 	monitors := NewGoMonitorFactory("sopher", model)
 	for idx, assumption := range contract.regions[0].assumptions {
 		assumptionList[idx] = monitors.Create(assumption)
@@ -84,32 +118,32 @@ func (injector Injector) Contract(model string, function *ast.FuncDecl) (string,
 		guaranteeList[idx] = monitors.Create(guarantee)
 	}
 
-	constructor := &ast.CallExpr{
-		Fun: &ast.SelectorExpr{
-			Sel: ast.NewIdent("NewAGContract"),
-			X:   ast.NewIdent("sopher"),
+	constructor := &dst.CallExpr{
+		Fun: &dst.SelectorExpr{
+			Sel: dst.NewIdent("NewAGContract"),
+			X:   dst.NewIdent("sopher"),
 		},
-		Args: []ast.Expr{
-			&ast.CompositeLit{
-				Type: &ast.ArrayType{
-					Elt: &ast.IndexExpr{
-						X: &ast.SelectorExpr{
-							Sel: ast.NewIdent("IncrementalMonitor"),
-							X:   ast.NewIdent("sopher"),
+		Args: []dst.Expr{
+			&dst.CompositeLit{
+				Type: &dst.ArrayType{
+					Elt: &dst.IndexExpr{
+						X: &dst.SelectorExpr{
+							Sel: dst.NewIdent("IncrementalMonitor"),
+							X:   dst.NewIdent("sopher"),
 						},
-						Index: ast.NewIdent(model),
+						Index: dst.NewIdent(model),
 					},
 				},
 				Elts: assumptionList,
 			},
-			&ast.CompositeLit{
-				Type: &ast.ArrayType{
-					Elt: &ast.IndexExpr{
-						X: &ast.SelectorExpr{
-							Sel: ast.NewIdent("IncrementalMonitor"),
-							X:   ast.NewIdent("sopher"),
+			&dst.CompositeLit{
+				Type: &dst.ArrayType{
+					Elt: &dst.IndexExpr{
+						X: &dst.SelectorExpr{
+							Sel: dst.NewIdent("IncrementalMonitor"),
+							X:   dst.NewIdent("sopher"),
 						},
-						Index: ast.NewIdent(model),
+						Index: dst.NewIdent(model),
 					},
 				},
 				Elts: guaranteeList,
@@ -117,111 +151,159 @@ func (injector Injector) Contract(model string, function *ast.FuncDecl) (string,
 		},
 	}
 
-	contractName := name+"_Contract"
+	contractName := name + "_Contract"
 
-	return contractName, &ast.GenDecl{
+	return contractName, &dst.GenDecl{
 		Tok: token.VAR,
-		Specs: []ast.Spec{
-			&ast.ValueSpec{
-				Names: []*ast.Ident{
-					ast.NewIdent(contractName),
+		Specs: []dst.Spec{
+			&dst.ValueSpec{
+				Names: []*dst.Ident{
+					dst.NewIdent(contractName),
 				},
-				Type: &ast.IndexExpr{
-					X: &ast.SelectorExpr{
-						X:   ast.NewIdent("sopher"),
-						Sel: ast.NewIdent("AGContract"),
+				Type: &dst.IndexExpr{
+					X: &dst.SelectorExpr{
+						X:   dst.NewIdent("sopher"),
+						Sel: dst.NewIdent("AGContract"),
 					},
-					Index: ast.NewIdent(model),
+					Index: dst.NewIdent(model),
 				},
-				Values: []ast.Expr{ constructor },
+				Values: []dst.Expr{constructor},
 			},
 		},
 	}
 }
 
-func (injector Injector) Inject(file *token.File, fset *token.FileSet, root *ast.File) {
-	declarations := make([]ast.Decl, 0)
+func (injector Injector) Wrap(function *dst.FuncDecl) *dst.AssignStmt {
+	var TypeParams *dst.FieldList = nil
+	if function.Type.TypeParams != nil {
+		TypeParams = dst.Clone(function.Type.TypeParams).(*dst.FieldList)
+	}
 
-	astutil.Apply(root, nil, func(cursor *astutil.Cursor) bool {
+	var Params *dst.FieldList = nil
+	if function.Type.Params != nil {
+		Params = dst.Clone(function.Type.Params).(*dst.FieldList)
+	}
+
+	var Results *dst.FieldList = nil
+	if function.Type.Results != nil {
+		Results = dst.Clone(function.Type.Results).(*dst.FieldList)
+	}
+
+	return &dst.AssignStmt{
+		Lhs: []dst.Expr{
+			dst.NewIdent("wrap"),
+		},
+		Tok: token.DEFINE,
+		Rhs: []dst.Expr{
+			&dst.FuncLit{
+				Type: &dst.FuncType{
+					TypeParams: TypeParams,
+					Params:     Params,
+					Results:    Results,
+				},
+				Body: function.Body,
+			},
+		},
+	}
+}
+
+func (injector Injector) ConstructModel(model string, function *dst.FuncDecl) *dst.AssignStmt {
+	fields := make([]dst.Expr, 0)
+	for _, field := range function.Type.Params.List {
+		for _, name := range field.Names {
+			fields = append(fields, &dst.KeyValueExpr{
+				Key:   dst.NewIdent(name.Name),
+				Value: dst.NewIdent(name.Name),
+			})
+		}
+	}
+
+	return &dst.AssignStmt{
+		Lhs: []dst.Expr{
+			dst.NewIdent("execution"),
+		},
+		Tok: token.DEFINE,
+		Rhs: []dst.Expr{
+			&dst.CompositeLit{
+				Type: dst.NewIdent(model),
+				Elts: fields,
+			},
+		},
+	}
+}
+
+func (injector Injector) Inject(file *dst.File) {
+	dstutil.Apply(file, nil, func(cursor *dstutil.Cursor) bool {
 		switch cast := cursor.Node().(type) {
-		case *ast.FuncDecl:
-			if len(cast.Doc.List) == 0 {
+		case *dst.FuncDecl:
+			comments := cast.Decs.NodeDecs.Start
+			if len(comments) == 0 {
 				return true
 			}
-			
+
 			modelName, model := injector.Model(cast)
+			cursor.InsertBefore(model)
+
 			_, contract := injector.Contract(modelName, cast)
-			declarations = append(declarations, []ast.Decl{model, contract}...)
+			cursor.InsertBefore(contract)
 
-			wrap := &ast.AssignStmt{
-				Lhs: []ast.Expr{
-					ast.NewIdent("wrap"),
-				},
-				Tok: token.DEFINE,
-				Rhs: []ast.Expr{
-					&ast.FuncLit{
-						Type: &ast.FuncType{
-							TypeParams: cast.Type.TypeParams,
-							Params:     cast.Type.Params,
-							Results:    cast.Type.Results,
-						},
-						Body: cast.Body,
-					},
-				},
-			}
+			body := make([]dst.Stmt, 0)
 
-			body := make([]ast.Stmt, 0)
+			wrap := injector.Wrap(cast)
 			body = append(body, wrap)
 
-			declaration := &ast.FuncDecl{
-				Doc:  cast.Doc,
+			modelConstruction := injector.ConstructModel(modelName, cast)
+			body = append(body, modelConstruction)
+
+			declaration := &dst.FuncDecl{
 				Recv: cast.Recv,
 				Name: cast.Name,
 				Type: cast.Type,
-				Body: &ast.BlockStmt{
+				Body: &dst.BlockStmt{
 					List: body,
 				},
+				Decs: cast.Decs,
 			}
 
 			cursor.Replace(declaration)
 		}
-
 		return true
 	})
 
-	if len(declarations) > 0 {
-		injector.Imports(root, fset, map[string]string{
-			"sopher": "github.com/hyperproperties/sopher/pkg/language",
-		})
-	}
-
-	root.Decls = append(root.Decls, declarations...)
-
-	path := file.Name()
-	filesx.Move(path, path+"-sopher")
-
-	newFile, err := filesx.Create(path)
-	if err != nil {
-		panic(err)
-	}
-
-	printer.Fprint(newFile, fset, root)
-	newFile.Close()
+	injector.Imports(file, map[string]string{
+		"sopher": "github.com/hyperproperties/sopher/pkg/language",
+	})
 }
 
 func (injector Injector) Files(files iter.Seq[string]) {
 	fset := token.NewFileSet()
+	decor := decorator.NewDecorator(fset)
 
 	for path := range files {
-		content, _ := os.ReadFile(path)
-		root, _ := parser.ParseFile(fset, path, content, parser.ParseComments)
-		file := fset.File(root.Pos())
-		injector.Inject(file, fset, root)
-	}
-}
+		// Read the file
+		content, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
 
-func (injector Injector) Restore(files iter.Seq[string]) {
-	for path := range files {
-		filesx.Move(path+"-sopher", path)
+		// Parse the decorated syntax tree.
+		dst, err := decor.ParseFile(filepath.Base(path), content, parser.ParseComments)
+		if err != nil {
+			continue
+		}
+
+		injector.Inject(dst)
+
+		// Move original file to keep it.
+		filesx.Move(path, path+"-sopher")
+
+		// Create file for instrumented version.
+		newFile, err := filesx.Create(path)
+		if err != nil {
+			// TODO: What to do here? Revert to the original file and report it?
+			panic(err)
+		}
+
+		decorator.Fprint(newFile, dst)
 	}
 }
