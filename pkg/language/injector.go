@@ -58,15 +58,23 @@ func (injector Injector) Imports(file *dst.File, imports map[string]string) {
 	}
 }
 
-func (injector Injector) Model(function *dst.FuncDecl) (string, *dst.GenDecl) {
-	name := function.Name.Name
-
-	fields := make([]*dst.Field, 0)
-
+func (injector Injector) InputFields(function *dst.FuncDecl) (fields []*dst.Field) {
 	for _, input := range function.Type.Params.List {
 		fields = append(fields, dst.Clone(input).(*dst.Field))
 	}
+	return fields
+}
 
+func (injector Injector) HasNamedOutputs(function *dst.FuncDecl) bool {
+	for _, output := range function.Type.Results.List {
+		if len(output.Names) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func (injector Injector) OutputFields(function *dst.FuncDecl) (fields []*dst.Field) {
 	for idx, output := range function.Type.Results.List {
 		if len(output.Names) > 0 {
 			fields = append(fields, dst.Clone(output).(*dst.Field))
@@ -80,6 +88,16 @@ func (injector Injector) Model(function *dst.FuncDecl) (string, *dst.GenDecl) {
 			fields = append(fields, field)
 		}
 	}
+
+	return fields
+}
+
+func (injector Injector) Model(function *dst.FuncDecl) (string, *dst.GenDecl) {
+	name := function.Name.Name
+
+	fields := make([]*dst.Field, 0)
+	fields = append(fields, injector.InputFields(function)...)
+	fields = append(fields, injector.OutputFields(function)...)
 
 	model := &dst.StructType{
 		Fields: &dst.FieldList{
@@ -232,6 +250,106 @@ func (injector Injector) ConstructModel(model string, function *dst.FuncDecl) *d
 	}
 }
 
+func (injector Injector) Check(name string, contractName string) *dst.IfStmt {
+	return &dst.IfStmt{
+		Cond: &dst.CallExpr{
+			Fun: &dst.SelectorExpr{
+				X: &dst.CallExpr{
+					Fun: &dst.SelectorExpr{
+						X:   dst.NewIdent(contractName),
+						Sel: dst.NewIdent(name),
+					},
+					Args: []dst.Expr{
+						dst.NewIdent("execution"),
+					},
+				},
+				Sel: dst.NewIdent("IsFalse"),
+			},
+		},
+		Body: &dst.BlockStmt{
+			List: []dst.Stmt{
+				&dst.ExprStmt{
+					X: &dst.CallExpr{
+						Fun: dst.NewIdent("panic"),
+						Args: []dst.Expr{
+							&dst.BasicLit{
+								Kind:  token.STRING,
+								Value: "\"\"",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func (injector Injector) CallWrap(function *dst.FuncDecl) *dst.AssignStmt {
+	var outputs []dst.Expr
+	for _, output := range injector.OutputFields(function) {
+		for _, name := range output.Names {
+			outputs = append(outputs, dst.NewIdent(name.Name))
+		}
+	}
+
+	var inputs []dst.Expr
+	for _, input := range injector.InputFields(function) {
+		for _, name := range input.Names {
+			inputs = append(inputs, dst.NewIdent(name.Name))
+		}
+	}
+
+	operator := token.DEFINE
+	if injector.HasNamedOutputs(function) {
+		operator = token.ASSIGN
+	}
+
+	return &dst.AssignStmt{
+		Lhs: outputs,
+		Tok: operator,
+		Rhs: []dst.Expr{
+			&dst.CallExpr{
+				Fun:  dst.NewIdent("wrap"),
+				Args: inputs,
+			},
+		},
+	}
+}
+
+func (injector Injector) Updates(function *dst.FuncDecl) (updates []*dst.AssignStmt) {
+	for _, output := range injector.OutputFields(function) {
+		for _, name := range output.Names {
+			updates = append(updates, &dst.AssignStmt{
+				Lhs: []dst.Expr{
+					&dst.SelectorExpr{
+						X:   dst.NewIdent("execution"),
+						Sel: dst.NewIdent(name.Name),
+					},
+				},
+				Tok: token.ASSIGN,
+				Rhs: []dst.Expr{
+					dst.NewIdent(name.Name),
+				},
+			})
+		}
+	}
+
+	return updates
+}
+
+func (injector Injector) Return(function *dst.FuncDecl) *dst.ReturnStmt {
+	var results []dst.Expr
+	for _, output := range injector.OutputFields(function) {
+		for _, name := range output.Names {
+			results = append(results, dst.NewIdent(name.Name))
+		}
+	}
+
+	return &dst.ReturnStmt{
+		Results: results,
+	}
+}
+
 func (injector Injector) Inject(file *dst.File) {
 	dstutil.Apply(file, nil, func(cursor *dstutil.Cursor) bool {
 		switch cast := cursor.Node().(type) {
@@ -244,7 +362,7 @@ func (injector Injector) Inject(file *dst.File) {
 			modelName, model := injector.Model(cast)
 			cursor.InsertBefore(model)
 
-			_, contract := injector.Contract(modelName, cast)
+			contractName, contract := injector.Contract(modelName, cast)
 			cursor.InsertBefore(contract)
 
 			body := make([]dst.Stmt, 0)
@@ -254,6 +372,22 @@ func (injector Injector) Inject(file *dst.File) {
 
 			modelConstruction := injector.ConstructModel(modelName, cast)
 			body = append(body, modelConstruction)
+
+			assumptionCheck := injector.Check("Assume", contractName)
+			body = append(body, assumptionCheck)
+
+			wrapCall := injector.CallWrap(cast)
+			body = append(body, wrapCall)
+
+			for _, update := range injector.Updates(cast) {
+				body = append(body, update)
+			}
+
+			guaranteeCheck := injector.Check("Guarantee", contractName)
+			body = append(body, guaranteeCheck)
+
+			returnStmt := injector.Return(cast)
+			body = append(body, returnStmt)
 
 			declaration := &dst.FuncDecl{
 				Recv: cast.Recv,
@@ -305,5 +439,11 @@ func (injector Injector) Files(files iter.Seq[string]) {
 		}
 
 		decorator.Fprint(newFile, dst)
+	}
+}
+
+func (injector Injector) Restore(files iter.Seq[string]) {
+	for path := range files {
+		filesx.Move(path, path+"sopher")
 	}
 }

@@ -67,10 +67,14 @@ func IncrementalPermutations(sub, slice, added int) iter.Seq[[]int] {
 				}
 			}
 
+			// All elements should be "not"-added elements
+			// since we only consider situations where there
+			// is atleast one new then this is skipped.
 			if zeros == sub {
 				continue
 			}
 
+			// The slice if full of added elements.
 			permutation := make([]int, sub)
 			copy(permutation, underlying)
 			if zeros == 0 {
@@ -83,6 +87,7 @@ func IncrementalPermutations(sub, slice, added int) iter.Seq[[]int] {
 				}
 			}
 
+			// Replace all "0" with an existing (not added) element.
 			for overlying := range Permutations(zeros, slice) {
 				permutation := make([]int, sub)
 
