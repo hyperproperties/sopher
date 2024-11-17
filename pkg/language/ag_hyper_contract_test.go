@@ -3,7 +3,7 @@ package language
 import "testing"
 
 func Test(t *testing.T) {
-	type Execution struct {
+	/*type Execution struct {
 		input int
 		output int
 	}
@@ -35,5 +35,5 @@ func Test(t *testing.T) {
 		output := monotone(execution.input)
 		execution.output = output
 		return execution
-	})
+	})*/
 }

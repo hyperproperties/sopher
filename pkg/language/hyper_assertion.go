@@ -5,6 +5,7 @@ package language
 type HyperAssertionVisitor[T any] interface {
 	UniversalHyperAssertion(assertion UniversalHyperAssertion[T])
 	ExistentialHyperAssertion(assertion ExistentialHyperAssertion[T])
+	BinaryHyperAssertion(assertion BinaryHyperAssertion[T])
 	PredicateHyperAssertion(assertion PredicateHyperAssertion[T])
 	TrueHyperAssertion(assertion TrueHyperAssertion[T])
 }
@@ -23,6 +24,7 @@ var (
 	_ HyperAssertion[any] = (*ExistentialHyperAssertion[any])(nil)
 	_ HyperAssertion[any] = (*PredicateHyperAssertion[any])(nil)
 	_ HyperAssertion[any] = (*TrueHyperAssertion[any])(nil)
+	_ HyperAssertion[any] = (*BinaryHyperAssertion[any])(nil)
 )
 
 func HyperAssertionFromAST[T any](node Node) HyperAssertion[T] {
@@ -58,6 +60,39 @@ func (assertion TrueHyperAssertion[T]) Size() int {
 
 func (assertion TrueHyperAssertion[T]) Accept(visitor HyperAssertionVisitor[T]) {
 	visitor.TrueHyperAssertion(assertion)
+}
+
+type BinaryOperator uint8
+const (
+	LogicalConjunction = BinaryOperator(iota)
+	LogicalDisjunction
+	LogicalImplication
+	LogicalBiimplication
+)
+
+type BinaryHyperAssertion[T any] struct {
+	lhs, rhs HyperAssertion[T]
+	operator BinaryOperator
+}
+
+func (assertion BinaryHyperAssertion[T]) Size() int {
+	return assertion.lhs.Size() + assertion.rhs.Size()
+}
+
+func (assertion BinaryHyperAssertion[T]) Accept(visitor HyperAssertionVisitor[T]) {
+	visitor.BinaryHyperAssertion(assertion)
+}
+
+func NewBinaryHyperAssertion[T any](
+	lhs HyperAssertion[T],
+	operator BinaryOperator,
+	rhs HyperAssertion[T],
+) BinaryHyperAssertion[T] {
+	return BinaryHyperAssertion[T]{
+		lhs: lhs,
+		operator: operator,
+		rhs: rhs,
+	}
 }
 
 type PredicateHyperAssertion[T any] struct {

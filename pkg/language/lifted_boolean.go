@@ -23,6 +23,10 @@ func (lhs LiftedBoolean) And(rhs LiftedBoolean) LiftedBoolean {
 	return LiftedBoolean(lhs & rhs)
 }
 
+func (lhs LiftedBoolean) Iff(rhs LiftedBoolean) LiftedBoolean {
+	return LiftBoolean(lhs == rhs)
+}
+
 func (boolean LiftedBoolean) Not() LiftedBoolean {
 	if boolean == LiftedUnknown {
 		return LiftedUnknown
