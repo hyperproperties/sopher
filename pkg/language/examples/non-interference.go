@@ -1,6 +1,6 @@
 package examples
 
-import (
+/*import (
 	_ "math"
 
 	sopher "github.com/hyperproperties/sopher/pkg/language"
@@ -72,3 +72,4 @@ func Abs(input int) int {
 	}
 	return ret0
 }
+*/

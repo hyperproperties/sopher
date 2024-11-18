@@ -21,7 +21,7 @@ func TestConsumeWord(t *testing.T) {
 	suffix := ":"
 
 	str := "assume:"
-	lexer := NewLexer(iterx.FromSlice([]rune(str)))
+	lexer := NewLexer(iterx.Forward([]rune(str)))
 
 	found, lookahead, _ := lexer.peekWord(prefix, skip, body, suffix)
 	assert.True(t, found)
@@ -80,7 +80,7 @@ func TestPeekWord(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.description, func(t *testing.T) {
-			lexer := NewLexer(iterx.FromSlice([]rune(tt.word)))
+			lexer := NewLexer(iterx.Forward([]rune(tt.word)))
 			found, lookahead, _ := lexer.peekWord(prefix, skip, body, postfix)
 			assert.Equal(t, tt.found, found)
 			assert.Equal(t, tt.lookahead, lookahead)
@@ -90,7 +90,7 @@ func TestPeekWord(t *testing.T) {
 
 func TestLexerPeekAdvance(t *testing.T) {
 	str := "hello, world!"
-	lexer := NewLexer(iterx.FromSlice([]rune(str)))
+	lexer := NewLexer(iterx.Forward([]rune(str)))
 
 	var builder strings.Builder
 	for {

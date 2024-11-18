@@ -19,15 +19,8 @@ func NewAGHyperContract[T any](
 }
 
 func (contract *AGHyperContract[T]) Assume(executions ...T) LiftedBoolean {
-	/*interpreter := NewHyperAssertionInterpreter[T]()
-	for _, assumption := range contract.assumptions {
-		satisfied := interpreter.Satisfies(assumption, executions)
-		if !satisfied {
-			return LiftedFalse
-		}
-	}
-	return LiftedTrue*/
-	panic("not implemented yet")
+	// FIXME: Implement a test here.
+	return LiftedTrue
 }
 
 func (contract *AGHyperContract[T]) Call(execution T) T {
@@ -35,13 +28,6 @@ func (contract *AGHyperContract[T]) Call(execution T) T {
 }
 
 func (contract *AGHyperContract[T]) Guarantee(executions ...T) LiftedBoolean {
-	/*interpreter := NewHyperAssertionInterpreter[T]()
-	for _, guarantee := range contract.guarantees {
-		satisfied := interpreter.Satisfies(guarantee, executions)
-		if !satisfied {
-			return LiftedFalse
-		}
-	}
-	return LiftedTrue*/
-	panic("not implemented yet")
+	// FIXME: Implement a test here.
+	return LiftedTrue
 }

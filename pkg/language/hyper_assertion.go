@@ -5,6 +5,7 @@ package language
 type HyperAssertionVisitor[T any] interface {
 	UniversalHyperAssertion(assertion UniversalHyperAssertion[T])
 	ExistentialHyperAssertion(assertion ExistentialHyperAssertion[T])
+	UnaryHyperAssertion(assertion UnaryHyperAssertion[T])
 	BinaryHyperAssertion(assertion BinaryHyperAssertion[T])
 	PredicateHyperAssertion(assertion PredicateHyperAssertion[T])
 	TrueHyperAssertion(assertion TrueHyperAssertion[T])
@@ -33,11 +34,11 @@ func HyperAssertionFromAST[T any](node Node) HyperAssertion[T] {
 		switch cast := node.(type) {
 		case Universal:
 			body := recurse(cast.assertion, variables+len(cast.variables))
-			monitor := NewUniversalHyperAssertion[T](variables, len(cast.variables), body)
+			monitor := NewUniversalHyperAssertion(variables, len(cast.variables), body)
 			return monitor
 		case Existential:
 			body := recurse(cast.assertion, variables+len(cast.variables))
-			monitor := NewExistentialHyperAssertion[T](variables, len(cast.variables), body)
+			monitor := NewExistentialHyperAssertion(variables, len(cast.variables), body)
 			return monitor
 		case PredicateExpression[T]:
 			monitor := NewPredicateHyperAssertion(cast.predicate)
@@ -62,7 +63,32 @@ func (assertion TrueHyperAssertion[T]) Accept(visitor HyperAssertionVisitor[T]) 
 	visitor.TrueHyperAssertion(assertion)
 }
 
+type UnaryOperator uint8
+
+const LogicalNegation = UnaryOperator(iota)
+
+type UnaryHyperAssertion[T any] struct {
+	operator UnaryOperator
+	operand  HyperAssertion[T]
+}
+
+func NewUnaryHyperAssertion[T any](operator UnaryOperator, operand HyperAssertion[T]) UnaryHyperAssertion[T] {
+	return UnaryHyperAssertion[T]{
+		operator: operator,
+		operand:  operand,
+	}
+}
+
+func (assertion UnaryHyperAssertion[T]) Size() int {
+	return assertion.operand.Size()
+}
+
+func (assertion UnaryHyperAssertion[T]) Accept(visitor HyperAssertionVisitor[T]) {
+	visitor.UnaryHyperAssertion(assertion)
+}
+
 type BinaryOperator uint8
+
 const (
 	LogicalConjunction = BinaryOperator(iota)
 	LogicalDisjunction
@@ -89,9 +115,9 @@ func NewBinaryHyperAssertion[T any](
 	rhs HyperAssertion[T],
 ) BinaryHyperAssertion[T] {
 	return BinaryHyperAssertion[T]{
-		lhs: lhs,
+		lhs:      lhs,
 		operator: operator,
-		rhs: rhs,
+		rhs:      rhs,
 	}
 }
 

@@ -68,7 +68,7 @@ func LexString(str string) iter.Seq[Token] {
 }
 
 func LexRunes(runes []rune) iter.Seq[Token] {
-	lexer := NewLexer(iterx.FromSlice(runes))
+	lexer := NewLexer(iterx.Forward(runes))
 	return lexer.Scan()
 }
 

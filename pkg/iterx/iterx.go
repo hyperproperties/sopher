@@ -2,10 +2,20 @@ package iterx
 
 import "iter"
 
-func FromSlice[S ~[]E, E any](slice S) iter.Seq[E] {
+func Forward[S ~[]E, E any](slice S) iter.Seq[E] {
 	return func(yield func(E) bool) {
 		for _, element := range slice {
 			if !yield(element) {
+				break
+			}
+		}
+	}
+}
+
+func Backward[S ~[]E, E any](slice S) iter.Seq[E] {
+	return func(yield func(E) bool) {
+		for idx := len(slice) - 1; idx >= 0; idx-- {
+			if !yield(slice[idx]) {
 				break
 			}
 		}

@@ -184,7 +184,7 @@ func TestMapIncrementalPermutation(t *testing.T) {
 
 func TestBufferedPull(t *testing.T) {
 	numbers := []int{1, 2, 3, 4, 5, 6, 7, 8, 9}
-	next, peek, _ := BufferedPull(FromSlice(numbers))
+	next, peek, _ := BufferedPull(Forward(numbers))
 
 	for idx := 0; idx < len(numbers); idx++ {
 		element, exists := peek(idx + 1)
