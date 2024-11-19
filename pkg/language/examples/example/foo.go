@@ -7,7 +7,7 @@ import (
 )
 
 var Retain_Contract sopher.AGHyperContract[Retain_ExecutionModel] = sopher.NewAGHyperContract(
-	[]sopher.HyperAssertion[Retain_ExecutionModel]{},
+	sopher.AllAssertion[Retain_ExecutionModel]{},
 	func(execution Retain_ExecutionModel) Retain_ExecutionModel {
 		// Wrap the body of the function.
 		wrap := func(a, b int) (x, y int) {
@@ -16,13 +16,15 @@ var Retain_Contract sopher.AGHyperContract[Retain_ExecutionModel] = sopher.NewAG
 			return
 		}
 
+		// Call the wrapped function and store the outputs.
 		x, y := wrap(execution.a, execution.b)
 		execution.x = x
 		execution.y = y
 
+		// Return the execution with outputs.
 		return execution
 	},
-	[]sopher.HyperAssertion[Retain_ExecutionModel]{},
+	sopher.AllAssertion[Retain_ExecutionModel]{},
 )
 
 // assume: ...
@@ -34,19 +36,22 @@ func Foo(a, b int) (x, y int) {
 		b: b,
 	}
 
+	// Execute the hyper-hoare triple.
+	assumption, guarantee := sopher.LiftedTrue, sopher.LiftedTrue
+	assumption, execution, guarantee = Retain_Contract.Call(execution)
+
 	// Check the assumption against the assumed model.
-	if Retain_Contract.Assume(execution).IsFalse() {
+	if assumption.IsFalse() {
 		log.Println("Assumption failed")
 	}
 
-	execution = Retain_Contract.Call(execution)
-
 	// Check the guarantee against the assumed model.
-	if Retain_Contract.Guarantee(execution).IsFalse() {
+	if guarantee.IsFalse() {
 		log.Println("Guarantee failed")
 	}
 
-	return x, y
+	// Return the outputs stored in the execution from calling the triple.
+	return execution.x, execution.y
 }
 
 type Retain_ExecutionModel struct {

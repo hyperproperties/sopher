@@ -7,6 +7,8 @@ type HyperAssertionVisitor[T any] interface {
 	BinaryHyperAssertion(assertion BinaryHyperAssertion[T])
 	PredicateHyperAssertion(assertion PredicateHyperAssertion[T])
 	TrueHyperAssertion(assertion TrueHyperAssertion[T])
+	AllAssertion(assertion AllAssertion[T])
+	AnyAssertion(assertion AnyAssertion[T])
 }
 
 // HyperAssertion represents an interface for tracking and evaluating the state of
@@ -23,7 +25,21 @@ var (
 	_ HyperAssertion[any] = (*PredicateHyperAssertion[any])(nil)
 	_ HyperAssertion[any] = (*TrueHyperAssertion[any])(nil)
 	_ HyperAssertion[any] = (*BinaryHyperAssertion[any])(nil)
+	_ HyperAssertion[any] = (*AllAssertion[any])(nil)
+	_ HyperAssertion[any] = (*AnyAssertion[any])(nil)
 )
+
+type AllAssertion[T any] []HyperAssertion[T]
+
+func (assertion AllAssertion[T]) Accept(visitor HyperAssertionVisitor[T]) {
+	visitor.AllAssertion(assertion)
+}
+
+type AnyAssertion[T any] []HyperAssertion[T]
+
+func (assertion AnyAssertion[T]) Accept(visitor HyperAssertionVisitor[T]) {
+	visitor.AnyAssertion(assertion)
+}
 
 type TrueHyperAssertion[T any] struct{}
 
@@ -100,9 +116,9 @@ func (assertion PredicateHyperAssertion[T]) Accept(visitor HyperAssertionVisitor
 }
 
 type UniversalHyperAssertion[T any] struct {
-	size   int
-	body   HyperAssertion[T]
-	result LiftedBoolean
+	size int
+	body         HyperAssertion[T]
+	result       LiftedBoolean
 }
 
 func NewUniversalHyperAssertion[T any](size int, body HyperAssertion[T]) *UniversalHyperAssertion[T] {
@@ -119,13 +135,13 @@ func (assertion UniversalHyperAssertion[T]) Accept(visitor HyperAssertionVisitor
 
 type ExistentialHyperAssertion[T any] struct {
 	size int
-	body HyperAssertion[T]
+	body         HyperAssertion[T]
 }
 
 func NewExistentialHyperAssertion[T any](size int, body HyperAssertion[T]) *ExistentialHyperAssertion[T] {
 	return &ExistentialHyperAssertion[T]{
-		size: size,
-		body: body,
+		size:   size,
+		body:   body,
 	}
 }
 

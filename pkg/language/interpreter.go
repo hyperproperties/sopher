@@ -1,37 +1,61 @@
 package language
 
-type HyperAssertionInterpreter[T any] struct {
+var _ HyperAssertionVisitor[any] = (*Interpreter[any])(nil)
+
+type Interpreter[T any] struct {
 	explorer Explorer[T]
 	scope    Scope
 	stack    Stack[LiftedBoolean]
 }
 
-func NewInterpreter[T any](explorer Explorer[T]) HyperAssertionInterpreter[T] {
-	return HyperAssertionInterpreter[T]{
+func NewInterpreter[T any](explorer Explorer[T]) Interpreter[T] {
+	return Interpreter[T]{
 		explorer: explorer,
 	}
 }
 
-func (interpreter *HyperAssertionInterpreter[T]) Satisfies(assertion HyperAssertion[T]) LiftedBoolean {
+func (interpreter *Interpreter[T]) Satisfies(assertion HyperAssertion[T]) LiftedBoolean {
 	assertion.Accept(interpreter)
 	return interpreter.stack.Pop()
 }
 
-func (interpreter *HyperAssertionInterpreter[T]) UniversalHyperAssertion(assertion UniversalHyperAssertion[T]) {
+func (interpreter *Interpreter[T]) AllAssertion(assertions AllAssertion[T]) {
+	for _, assertion := range assertions {
+		if satisfied := interpreter.Satisfies(assertion); satisfied.IsFalse() {
+			interpreter.stack.Push(LiftedFalse)
+			return
+		}
+	}
+
+	interpreter.stack.Push(LiftedTrue)
+}
+
+func (interpreter *Interpreter[T]) AnyAssertion(assertions AnyAssertion[T]) {
+	for _, assertion := range assertions {
+		if satisfied := interpreter.Satisfies(assertion); satisfied.IsTrue() {
+			interpreter.stack.Push(LiftedTrue)
+			return
+		}
+	}
+
+	interpreter.stack.Push(LiftedFalse)
+}
+
+func (interpreter *Interpreter[T]) UniversalHyperAssertion(assertion UniversalHyperAssertion[T]) {
 	quantifier := NewUniversalQuantifier(assertion.size)
 	interpreter.scope.Push(quantifier)
 	assertion.body.Accept(interpreter)
 	interpreter.scope.Pop()
 }
 
-func (interpreter *HyperAssertionInterpreter[T]) ExistentialHyperAssertion(assertion ExistentialHyperAssertion[T]) {
+func (interpreter *Interpreter[T]) ExistentialHyperAssertion(assertion ExistentialHyperAssertion[T]) {
 	quantifier := NewExistentialQuantifier(assertion.size)
 	interpreter.scope.Push(quantifier)
 	assertion.body.Accept(interpreter)
 	interpreter.scope.Pop()
 }
 
-func (interpreter *HyperAssertionInterpreter[T]) UnaryHyperAssertion(assertion UnaryHyperAssertion[T]) {
+func (interpreter *Interpreter[T]) UnaryHyperAssertion(assertion UnaryHyperAssertion[T]) {
 	assertion.operand.Accept(interpreter)
 	operand := interpreter.stack.Pop()
 
@@ -43,7 +67,7 @@ func (interpreter *HyperAssertionInterpreter[T]) UnaryHyperAssertion(assertion U
 	}
 }
 
-func (interpreter *HyperAssertionInterpreter[T]) BinaryHyperAssertion(assertion BinaryHyperAssertion[T]) {
+func (interpreter *Interpreter[T]) BinaryHyperAssertion(assertion BinaryHyperAssertion[T]) {
 	assertion.lhs.Accept(interpreter)
 	lhs := interpreter.stack.Pop()
 
@@ -81,11 +105,12 @@ func (interpreter *HyperAssertionInterpreter[T]) BinaryHyperAssertion(assertion 
 	}
 }
 
-func (interpreter *HyperAssertionInterpreter[T]) PredicateHyperAssertion(assertion PredicateHyperAssertion[T]) {
+func (interpreter *Interpreter[T]) PredicateHyperAssertion(assertion PredicateHyperAssertion[T]) {
+	// TODO: To support nested quantifiers the assignments must be saved for the nested quantifiers.
 	result := interpreter.explorer.Explore(interpreter.scope, assertion)
 	interpreter.stack.Push(result)
 }
 
-func (interpreter *HyperAssertionInterpreter[T]) TrueHyperAssertion(assertion TrueHyperAssertion[T]) {
+func (interpreter *Interpreter[T]) TrueHyperAssertion(assertion TrueHyperAssertion[T]) {
 	interpreter.stack.Push(LiftedTrue)
 }

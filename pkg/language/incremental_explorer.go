@@ -1,54 +1,63 @@
 package language
 
-import "github.com/hyperproperties/sopher/pkg/iterx"
+import (
+	"slices"
+
+	"github.com/hyperproperties/sopher/pkg/iterx"
+)
 
 type IncrementalExplorer[T any] struct {
 	model []T
-	added int
+	increment []T
 }
 
-func NewIncrementalExplorer[T any](model []T, added int) IncrementalExplorer[T] {
+func NewIncrementalExplorer[T any](model []T, increment []T) IncrementalExplorer[T] {
 	return IncrementalExplorer[T]{
 		model: model,
-		added: added,
+		increment: increment,
 	}
 }
 
-// Appends executions to the model and assumed as ground truth.
-func (explorer *IncrementalExplorer[T]) Append(executions ...T) {
-	explorer.model = append(explorer.model, executions...)
-}
-
-// Increments the model and marks them as added. The index of the first element is
-// returned and the subsequent to to the len of the executions are the indices
-// of the executions in the model
+// Pushes the executions to the increment.
 func (explorer *IncrementalExplorer[T]) Increment(executions ...T) int {
-	explorer.Append(executions...)
-	explorer.added += len(executions)
-	return len(explorer.model) - len(executions) - 1
-}
-
-// Decrements the number of newly added executions.
-func (explorer *IncrementalExplorer[T]) Decrement(amount int) {
-	if amount > explorer.added {
-		panic("cannot decrement by more than incremented")
+	if len(executions) == 0 {
+		panic("cannot increment with no executions")
 	}
-	explorer.added -= amount
+	index := len(explorer.model) - 1 + len(explorer.increment)
+	explorer.increment = append(explorer.increment, executions...)
+	return index
 }
 
-// Updates an execution in the model.
+// Pops the executions from the increment.
+func (explorer *IncrementalExplorer[T]) Decrement(amount int) {
+	length := len(explorer.increment)
+	explorer.increment = slices.Delete(explorer.increment, length-amount-1, length-1)
+}
+
+// Finishes the increment and moves the executions to the model.
+func (explorer *IncrementalExplorer[T]) Commit() {
+	explorer.model = append(explorer.model, explorer.increment...)
+}
+
+// Finishes the increment by deleting the increment.
+func (explorer *IncrementalExplorer[T]) Rollback() {
+	explorer.increment = nil
+}
+
 func (explorer *IncrementalExplorer[T]) Update(index int, value T) {
 	explorer.model[index] = value
 }
 
-// Returns the number of executions in the model which are untested.
-func (explorer IncrementalExplorer[T]) Added() int {
-	return explorer.added
+func (explorer *IncrementalExplorer[T]) Model() []T {
+	return explorer.model
 }
 
-// Returns the full model with tested as well as untested executions.
-func (explorer IncrementalExplorer[T]) Model() []T {
-	return explorer.model
+func (explorer *IncrementalExplorer[T]) Incremental() []T {
+	return explorer.increment
+}
+
+func (explorer *IncrementalExplorer[T]) IncrementLength() int {
+	return len(explorer.increment)
 }
 
 // Checks if the assertion is satisfied given a fixed model where a prefix of it has already been tested.
@@ -74,25 +83,24 @@ func (explorer *IncrementalExplorer[T]) Explore(scope Scope, assertion Predicate
 
 		// Generate all assignments for the existential quantifier's variables.
 		quantifier := scope.quantifiers[depth]
-		existential, ok := quantifier.(ExistentialQuantifier)
-		if !ok {
-			return Exists(depth+1, offset+quantifier.Size())
+		if quantifier.quantification != ExistentialQuantification {
+			return Exists(depth+1, offset+quantifier.size)
 		}
 
 		// For every permutation is tried and tested against the assertion.
 		// TODO: Convert the ranging over assignments for the quantifier to a strategy.
 		for permutation := range iterx.Map(
-			explorer.model, iterx.Permutations(
-				existential.Size(), len(explorer.model),
+			append(explorer.model, explorer.increment...), iterx.Permutations(
+				quantifier.size, len(explorer.model),
 			),
 		) {
 			// TODO: copy?
-			for idx := 0; idx < existential.Size(); idx++ {
+			for idx := 0; idx < quantifier.size; idx++ {
 				assignments[offset+idx] = permutation[idx]
 			}
 
 			// Get the result and check for short circuit.
-			result := Exists(depth+1, offset+existential.Size())
+			result := Exists(depth+1, offset+quantifier.size)
 			if result.IsTrue() {
 				return result
 			}
@@ -106,18 +114,18 @@ func (explorer *IncrementalExplorer[T]) Explore(scope Scope, assertion Predicate
 	// TODO: Convert the ranging over assignments for the quantifier to a strategy.
 	for permutation := range iterx.Map(
 		explorer.model, iterx.IncrementalPermutations(
-			scope.UniversalSize(), len(explorer.model), explorer.added,
+			scope.UniversalSize(), len(explorer.model)+len(explorer.increment), len(explorer.increment),
 		),
 	) {
 		//For each assignment of universal variables:
 		local := 0
 		for offset, quantifier := range scope.Quantifiers() {
-			if cast, ok := quantifier.(UniversalQuantifier); ok {
+			if quantifier.quantification == UniversalQuantification {
 				// TODO: copy?
-				for idx := 0; idx < cast.Size(); idx++ {
+				for idx := 0; idx < quantifier.size; idx++ {
 					assignments[offset+idx] = permutation[local+idx]
 				}
-				local += cast.Size()
+				local += quantifier.size
 			}
 		}
 

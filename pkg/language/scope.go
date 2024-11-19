@@ -2,50 +2,30 @@ package language
 
 import "iter"
 
-type QuantifierVisitor interface {
-	UniversalQuantifier(quantifier UniversalQuantifier)
-	ExistentialQuantifier(quantifier ExistentialQuantifier)
+type Quantification uint8
+
+const (
+	UniversalQuantification = Quantification(iota)
+	ExistentialQuantification
+)
+
+type Quantifier struct {
+	quantification Quantification
+	size           int
 }
 
-type Quantifier interface {
-	Size() int
-	Accept(visitor QuantifierVisitor)
-}
-
-type UniversalQuantifier struct {
-	size int
-}
-
-func NewUniversalQuantifier(size int) UniversalQuantifier {
-	return UniversalQuantifier{
-		size: size,
+func NewUniversalQuantifier(size int) Quantifier {
+	return Quantifier{
+		quantification: UniversalQuantification,
+		size:           size,
 	}
 }
 
-func (quantifier UniversalQuantifier) Size() int {
-	return quantifier.size
-}
-
-func (quantifier UniversalQuantifier) Accept(visitor QuantifierVisitor) {
-	visitor.UniversalQuantifier(quantifier)
-}
-
-type ExistentialQuantifier struct {
-	size int
-}
-
-func NewExistentialQuantifier(size int) ExistentialQuantifier {
-	return ExistentialQuantifier{
-		size: size,
+func NewExistentialQuantifier(size int) Quantifier {
+	return Quantifier{
+		quantification: ExistentialQuantification,
+		size:           size,
 	}
-}
-
-func (quantifier ExistentialQuantifier) Size() int {
-	return quantifier.size
-}
-
-func (quantifier ExistentialQuantifier) Accept(visitor QuantifierVisitor) {
-	visitor.ExistentialQuantifier(quantifier)
 }
 
 type Scope struct {
@@ -62,19 +42,15 @@ func (scope Scope) Depth() int {
 
 func (scope Scope) Size() (size int) {
 	for _, quantifier := range scope.quantifiers {
-		size += quantifier.Size()
+		size += quantifier.size
 	}
 	return size
 }
 
 func (scope Scope) UniversalSize() (size int) {
-	for idx := range scope.quantifiers {
-		switch cast := scope.quantifiers[idx].(type) {
-		case UniversalQuantifier:
-			size += cast.Size()
-		case ExistentialQuantifier:
-		default:
-			panic("unknown quantifier")
+	for _, quantifier := range scope.quantifiers {
+		if quantifier.quantification == UniversalQuantification {
+			size += quantifier.size
 		}
 	}
 	return size
@@ -88,7 +64,7 @@ func (scope Scope) Quantifiers() iter.Seq2[int, Quantifier] {
 				return
 			}
 
-			offset += quantifier.Size()
+			offset += quantifier.size
 		}
 	}
 }
