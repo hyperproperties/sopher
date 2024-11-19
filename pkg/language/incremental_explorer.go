@@ -43,11 +43,13 @@ func (explorer *IncrementalExplorer[T]) Explore(scope Scope, assertion Predicate
 		}
 
 		// For every permutation is tried and tested against the assertion.
+		// TODO: Convert the ranging over assignments for the quantifier to a strategy.
 		for permutation := range iterx.Map(
 			explorer.model, iterx.Permutations(
 				existential.Size(), len(explorer.model),
 			),
 		) {
+			// TODO: copy?
 			for idx := 0; idx < existential.Size(); idx++ {
 				assignments[offset+idx] = permutation[idx]
 			}
@@ -64,6 +66,7 @@ func (explorer *IncrementalExplorer[T]) Explore(scope Scope, assertion Predicate
 	}
 
 	// Generate all assignments for universal variables.
+	// TODO: Convert the ranging over assignments for the quantifier to a strategy.
 	for permutation := range iterx.Map(
 		explorer.model, iterx.IncrementalPermutations(
 			scope.UniversalSize(), len(explorer.model), explorer.added,
@@ -73,6 +76,7 @@ func (explorer *IncrementalExplorer[T]) Explore(scope Scope, assertion Predicate
 		local := 0
 		for offset, quantifier := range scope.Quantifiers() {
 			if cast, ok := quantifier.(UniversalQuantifier); ok {
+				// TODO: copy?
 				for idx := 0; idx < cast.Size(); idx++ {
 					assignments[offset+idx] = permutation[local+idx]
 				}

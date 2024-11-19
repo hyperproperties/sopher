@@ -1,6 +1,7 @@
 package quick
 
 import (
+	"iter"
 	"math"
 	"math/rand/v2"
 	"reflect"
@@ -12,6 +13,16 @@ func New[T any]() T {
 	concrete := reflect.ValueOf(&value).Elem()
 	NewReflect(concrete)
 	return value
+}
+
+func Iterator[T any]() iter.Seq[T] {
+	return func(yield func(T) bool) {
+		for {
+			if !yield(New[T]()) {
+				return
+			}
+		}
+	}
 }
 
 func Update[T any](value *T) {
