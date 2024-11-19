@@ -14,6 +14,43 @@ func NewIncrementalExplorer[T any](model []T, added int) IncrementalExplorer[T] 
 	}
 }
 
+// Appends executions to the model and assumed as ground truth.
+func (explorer *IncrementalExplorer[T]) Append(executions ...T) {
+	explorer.model = append(explorer.model, executions...)
+}
+
+// Increments the model and marks them as added. The index of the first element is
+// returned and the subsequent to to the len of the executions are the indices
+// of the executions in the model
+func (explorer *IncrementalExplorer[T]) Increment(executions ...T) int {
+	explorer.Append(executions...)
+	explorer.added += len(executions)
+	return len(explorer.model) - len(executions) - 1
+}
+
+// Decrements the number of newly added executions.
+func (explorer *IncrementalExplorer[T]) Decrement(amount int) {
+	if amount > explorer.added {
+		panic("cannot decrement by more than incremented")
+	}
+	explorer.added -= amount
+}
+
+// Updates an execution in the model.
+func (explorer *IncrementalExplorer[T]) Update(index int, value T) {
+	explorer.model[index] = value
+}
+
+// Returns the number of executions in the model which are untested.
+func (explorer IncrementalExplorer[T]) Added() int {
+	return explorer.added
+}
+
+// Returns the full model with tested as well as untested executions.
+func (explorer IncrementalExplorer[T]) Model() []T {
+	return explorer.model
+}
+
 // Checks if the assertion is satisfied given a fixed model where a prefix of it has already been tested.
 // It works by assigning a incremental permutation of the model to the universally quantified variables.
 // Then it attempts to recursively find a solution to the existentially quantified variables by
