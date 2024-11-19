@@ -25,27 +25,6 @@ var (
 	_ HyperAssertion[any] = (*BinaryHyperAssertion[any])(nil)
 )
 
-func HyperAssertionFromAST[T any](node Node) HyperAssertion[T] {
-	var recurse func(node Node) HyperAssertion[T]
-	recurse = func(node Node) HyperAssertion[T] {
-		switch cast := node.(type) {
-		case Universal:
-			body := recurse(cast.assertion)
-			monitor := NewUniversalHyperAssertion(len(cast.variables), body)
-			return monitor
-		case Existential:
-			body := recurse(cast.assertion)
-			monitor := NewExistentialHyperAssertion(len(cast.variables), body)
-			return monitor
-		case PredicateExpression[T]:
-			monitor := NewPredicateHyperAssertion(cast.predicate)
-			return monitor
-		}
-		panic("unknown or unsupported AST node for the incremental monitor")
-	}
-	return recurse(node)
-}
-
 type TrueHyperAssertion[T any] struct{}
 
 func NewTrueHyperAssertion[T any]() *TrueHyperAssertion[T] {
@@ -121,9 +100,9 @@ func (assertion PredicateHyperAssertion[T]) Accept(visitor HyperAssertionVisitor
 }
 
 type UniversalHyperAssertion[T any] struct {
-	size int
-	body         HyperAssertion[T]
-	result       LiftedBoolean
+	size   int
+	body   HyperAssertion[T]
+	result LiftedBoolean
 }
 
 func NewUniversalHyperAssertion[T any](size int, body HyperAssertion[T]) *UniversalHyperAssertion[T] {
@@ -139,14 +118,14 @@ func (assertion UniversalHyperAssertion[T]) Accept(visitor HyperAssertionVisitor
 }
 
 type ExistentialHyperAssertion[T any] struct {
-	offset, size int
-	body         HyperAssertion[T]
+	size int
+	body HyperAssertion[T]
 }
 
 func NewExistentialHyperAssertion[T any](size int, body HyperAssertion[T]) *ExistentialHyperAssertion[T] {
 	return &ExistentialHyperAssertion[T]{
-		size:   size,
-		body:   body,
+		size: size,
+		body: body,
 	}
 }
 

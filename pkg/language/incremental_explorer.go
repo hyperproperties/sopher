@@ -76,7 +76,7 @@ func (explorer *IncrementalExplorer[T]) Explore(scope Scope, assertion Predicate
 		quantifier := scope.quantifiers[depth]
 		existential, ok := quantifier.(ExistentialQuantifier)
 		if !ok {
-			return Exists(depth + 1, offset + quantifier.Size())
+			return Exists(depth+1, offset+quantifier.Size())
 		}
 
 		// For every permutation is tried and tested against the assertion.
@@ -121,8 +121,8 @@ func (explorer *IncrementalExplorer[T]) Explore(scope Scope, assertion Predicate
 			}
 		}
 
-    	/* Check if there exists a satisfying assignment for the existential variables.
-    	     Use early exit if no such assignment exists. */
+		/* Check if there exists a satisfying assignment for the existential variables.
+		   Use early exit if no such assignment exists. */
 		result := Exists(0, 0)
 		if result.IsFalse() {
 			return result
