@@ -1,6 +1,7 @@
 package language
 
 import (
+	"math/rand/v2"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -8,14 +9,40 @@ import (
 
 func TestStack(t *testing.T) {
 	var stack Stack[int] = make(Stack[int], 0)
-	stack.Push(1)
-	assert.Equal(t, 1, len(stack))
-	stack.Push(2)
-	assert.Equal(t, 2, len(stack))
-	top := stack.Pop()
-	assert.Equal(t, 2, top)
-	assert.Equal(t, 1, len(stack))
-	top = stack.Pop()
-	assert.Equal(t, 1, top)
-	assert.Equal(t, 0, len(stack))
+
+	for counter := 0; counter < 10000; counter++ {
+		switch rand.IntN(3) {
+		case 0: // Push an element to the stack.
+			t.Log("push")
+			oldLength := len(stack)
+			element := rand.Int()
+			stack.Push(element)
+			assert.Equal(t, oldLength+1, len(stack))
+			assert.Equal(t, element, stack.Peek())
+		case 1: // Pop an element to the stack.
+			t.Log("pop")
+			if len(stack) > 0 {
+				top := stack.Peek()
+				oldLength := len(stack)
+				element := stack.Pop()
+				assert.Equal(t, oldLength-1, len(stack))
+				assert.Equal(t, top, element)
+			} else {
+				assert.Panics(t, func() {
+					stack.Pop()
+				})
+			}
+		case 2: // Peek the top of the stack.
+			t.Log("peek")
+			if len(stack) > 0 {
+				top := stack[len(stack)-1]
+				element := stack.Peek()
+				assert.Equal(t, top, element)
+			} else {
+				assert.Panics(t, func() {
+					stack.Peek()
+				})
+			}
+		}
+	}
 }

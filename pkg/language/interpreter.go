@@ -42,14 +42,14 @@ func (interpreter *Interpreter[T]) AnyAssertion(assertions AnyAssertion[T]) {
 }
 
 func (interpreter *Interpreter[T]) UniversalHyperAssertion(assertion UniversalHyperAssertion[T]) {
-	quantifier := NewUniversalQuantifier(assertion.size)
+	quantifier := NewUniversalQuantifierScope(assertion.size)
 	interpreter.scope.Push(quantifier)
 	assertion.body.Accept(interpreter)
 	interpreter.scope.Pop()
 }
 
 func (interpreter *Interpreter[T]) ExistentialHyperAssertion(assertion ExistentialHyperAssertion[T]) {
-	quantifier := NewExistentialQuantifier(assertion.size)
+	quantifier := NewExistentialQuantifierScope(assertion.size)
 	interpreter.scope.Push(quantifier)
 	assertion.body.Accept(interpreter)
 	interpreter.scope.Pop()

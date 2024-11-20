@@ -2,7 +2,6 @@ package language
 
 import (
 	"fmt"
-	"go/ast"
 	"iter"
 	"strings"
 	"unicode"
@@ -25,26 +24,7 @@ func NewLexer(runes iter.Seq[rune]) Lexer {
 	}
 }
 
-func LexGo(comments *ast.CommentGroup) iter.Seq[Token] {
-	var builder strings.Builder
-	for _, comment := range comments.List {
-		text := comment.Text
-
-		if rest, hasPrefix := strings.CutPrefix(text, "/*"); hasPrefix {
-			if rest, hasSuffix := strings.CutSuffix(rest, "*/"); hasSuffix {
-				builder.WriteString(rest)
-			} else {
-				panic("expected go multi-line comment to has both prefix and suffix")
-			}
-		} else if rest, hasPrefix := strings.CutPrefix(text, "//"); hasPrefix {
-			builder.WriteString(rest)
-			builder.WriteRune('\n')
-		}
-	}
-	return LexString(builder.String())
-}
-
-func LexDocStrings(docs []string) iter.Seq[Token] {
+func LexComments(docs []string) iter.Seq[Token] {
 	var builder strings.Builder
 
 	for _, text := range docs {
@@ -142,7 +122,7 @@ func (lexer *Lexer) peekWord(
 	return false, lookahead - 1, words
 }
 
-func (lexer *Lexer) consumeWord(
+func (lexer *Lexer) consumeWords(
 	prefix string,
 	skip func(rune) bool,
 	body func(string) bool,
@@ -353,7 +333,7 @@ func (lexer *Lexer) Scan() iter.Seq[Token] {
 				if !yield(token) {
 					return
 				}
-			} else if found, words := lexer.consumeWord(
+			} else if found, words := lexer.consumeWords(
 				"region",
 				lexer.isSpace,
 				lexer.isIdentifier,
@@ -363,7 +343,7 @@ func (lexer *Lexer) Scan() iter.Seq[Token] {
 				if !iterx.Pipe(region, yield) {
 					return
 				}
-			} else if found, words := lexer.consumeWord(
+			} else if found, words := lexer.consumeWords(
 				"assume",
 				lexer.isSpace,
 				func(string) bool { return false },
@@ -373,7 +353,7 @@ func (lexer *Lexer) Scan() iter.Seq[Token] {
 				if !iterx.Pipe(assume, yield) {
 					return
 				}
-			} else if found, words := lexer.consumeWord(
+			} else if found, words := lexer.consumeWords(
 				"guarantee",
 				lexer.isSpace,
 				func(string) bool { return false },
@@ -383,7 +363,7 @@ func (lexer *Lexer) Scan() iter.Seq[Token] {
 				if !iterx.Pipe(guarantee, yield) {
 					return
 				}
-			} else if found, words := lexer.consumeWord(
+			} else if found, words := lexer.consumeWords(
 				"forall",
 				lexer.isSpace,
 				lexer.isIdentifier,
@@ -393,7 +373,7 @@ func (lexer *Lexer) Scan() iter.Seq[Token] {
 				if !iterx.Pipe(forall, yield) {
 					return
 				}
-			} else if found, words := lexer.consumeWord(
+			} else if found, words := lexer.consumeWords(
 				"exists",
 				lexer.isSpace,
 				lexer.isIdentifier,
@@ -411,6 +391,6 @@ func (lexer *Lexer) Scan() iter.Seq[Token] {
 			}
 		}
 
-		yield(NewToken(EofToken, ""))
+		yield(NewToken(EndToken, ""))
 	}
 }

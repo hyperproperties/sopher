@@ -34,7 +34,7 @@ func (contract *AGHyperContract[T]) Assume(executions ...T) (satisfied LiftedBoo
 	}
 
 	end := contract.explorer.IncrementLength()
-	contract.explorer.Decrement(end-start)
+	contract.explorer.Decrement(end - start)
 
 	return satisfied
 }

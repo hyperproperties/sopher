@@ -113,8 +113,8 @@ type PredicateHyperAssertion[T any] struct {
 	predicate func(assignments []T) bool
 }
 
-func NewPredicateHyperAssertion[T any](predicate func(assignments []T) bool) *PredicateHyperAssertion[T] {
-	return &PredicateHyperAssertion[T]{
+func NewPredicateHyperAssertion[T any](predicate func(assignments []T) bool) PredicateHyperAssertion[T] {
+	return PredicateHyperAssertion[T]{
 		predicate: predicate,
 	}
 }
@@ -124,13 +124,13 @@ func (assertion PredicateHyperAssertion[T]) Accept(visitor HyperAssertionVisitor
 }
 
 type UniversalHyperAssertion[T any] struct {
-	size int
-	body         HyperAssertion[T]
-	result       LiftedBoolean
+	size   int
+	body   HyperAssertion[T]
+	result LiftedBoolean
 }
 
-func NewUniversalHyperAssertion[T any](size int, body HyperAssertion[T]) *UniversalHyperAssertion[T] {
-	return &UniversalHyperAssertion[T]{
+func NewUniversalHyperAssertion[T any](size int, body HyperAssertion[T]) UniversalHyperAssertion[T] {
+	return UniversalHyperAssertion[T]{
 		size:   size,
 		body:   body,
 		result: LiftedTrue,
@@ -143,13 +143,13 @@ func (assertion UniversalHyperAssertion[T]) Accept(visitor HyperAssertionVisitor
 
 type ExistentialHyperAssertion[T any] struct {
 	size int
-	body         HyperAssertion[T]
+	body HyperAssertion[T]
 }
 
-func NewExistentialHyperAssertion[T any](size int, body HyperAssertion[T]) *ExistentialHyperAssertion[T] {
-	return &ExistentialHyperAssertion[T]{
-		size:   size,
-		body:   body,
+func NewExistentialHyperAssertion[T any](size int, body HyperAssertion[T]) ExistentialHyperAssertion[T] {
+	return ExistentialHyperAssertion[T]{
+		size: size,
+		body: body,
 	}
 }
 

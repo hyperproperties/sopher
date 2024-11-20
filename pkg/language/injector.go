@@ -11,6 +11,7 @@ import (
 	"github.com/dave/dst"
 	"github.com/dave/dst/decorator"
 	"github.com/dave/dst/dstutil"
+	"github.com/hyperproperties/sopher/pkg/dstx"
 	"github.com/hyperproperties/sopher/pkg/filesx"
 )
 
@@ -122,7 +123,7 @@ func (injector Injector) Contract(model string, function *dst.FuncDecl) (string,
 	name := function.Name.Name
 
 	comments := function.Decs.NodeDecs.Start
-	parser := NewParser(LexDocStrings(comments))
+	parser := NewParser(LexComments(comments))
 	contract := parser.Parse()
 
 	assumptionList := make([]dst.Expr, len(contract.regions[0].assumptions))
@@ -297,7 +298,7 @@ func (injector Injector) Check(name string) *dst.IfStmt {
 	return &dst.IfStmt{
 		Cond: &dst.CallExpr{
 			Fun: &dst.SelectorExpr{
-				X: dst.NewIdent(name),
+				X:   dst.NewIdent(name),
 				Sel: dst.NewIdent("IsFalse"),
 			},
 		},
@@ -331,7 +332,7 @@ func (injector Injector) CallWrap(function *dst.FuncDecl) *dst.AssignStmt {
 	for _, input := range injector.InputFields(function) {
 		for _, name := range input.Names {
 			inputs = append(inputs, &dst.SelectorExpr{
-				X: dst.NewIdent("execution"),
+				X:   dst.NewIdent("execution"),
 				Sel: dst.NewIdent(name.Name),
 			})
 		}
@@ -376,42 +377,20 @@ func (injector Injector) Updates(function *dst.FuncDecl) (updates []*dst.AssignS
 }
 
 func (injector Injector) Call(contract string) *dst.AssignStmt {
-	return &dst.AssignStmt{
-		Lhs: []dst.Expr{
-			dst.NewIdent("assumption"),
-			dst.NewIdent("execution"),
-			dst.NewIdent("guarantee"),
-		},
-		Tok: token.DEFINE,
-		Rhs: []dst.Expr{
-			&dst.CallExpr{
-				Fun: &dst.SelectorExpr{
-					X: dst.NewIdent(contract),
-					Sel: dst.NewIdent("Call"),
-				},
-				Args: []dst.Expr{
-					dst.NewIdent("execution"),
-					dst.NewIdent("call"),
-				},
-			},
-		},
-	}
+	return dstx.DefineS("assumption", "execution","guarantee").As(
+		dstx.Call(dstx.SelectS("Call").FromS(contract)).PassS("execution", "call"),
+	)
 }
 
 func (injector Injector) Return(function *dst.FuncDecl) *dst.ReturnStmt {
 	var results []dst.Expr
 	for _, output := range injector.OutputFields(function) {
 		for _, name := range output.Names {
-			results = append(results, &dst.SelectorExpr{
-				Sel: dst.NewIdent(name.Name),
-				X: dst.NewIdent("execution"),
-			})
+			results = append(results, dstx.SelectS(name.Name).FromS("execution"))
 		}
 	}
 
-	return &dst.ReturnStmt{
-		Results: results,
-	}
+	return dstx.Return(results...)
 }
 
 func (injector Injector) Inject(file *dst.File) {
@@ -429,25 +408,18 @@ func (injector Injector) Inject(file *dst.File) {
 			contractName, contract := injector.Contract(modelName, cast)
 			cursor.InsertBefore(contract)
 
-			body := make([]dst.Stmt, 0)
-			
-			body = append(body, injector.ConstructModel(modelName, cast))
-			body = append(body, injector.DeclareCall(modelName, cast))
-			body = append(body, injector.Call(contractName))
-
-			body = append(body, injector.Check("assumption"))
-			body = append(body, injector.Check("guarantee"))
-
-			returnStmt := injector.Return(cast)
-			body = append(body, returnStmt)
-
 			declaration := &dst.FuncDecl{
 				Recv: cast.Recv,
 				Name: cast.Name,
 				Type: cast.Type,
-				Body: &dst.BlockStmt{
-					List: body,
-				},
+				Body: dstx.Block(
+					injector.ConstructModel(modelName, cast),
+					injector.DeclareCall(modelName, cast),
+					injector.Call(contractName),
+					injector.Check("assumption"),
+					injector.Check("guarantee"),
+					injector.Return(cast),
+				),
 				Decs: cast.Decs,
 			}
 

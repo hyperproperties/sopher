@@ -1,5 +1,7 @@
 package language
 
+// TODO: Make an explorer extending Increment Explorer with generational aspects to build the increment.
+
 import (
 	"slices"
 
@@ -7,13 +9,13 @@ import (
 )
 
 type IncrementalExplorer[T any] struct {
-	model []T
+	model     []T
 	increment []T
 }
 
 func NewIncrementalExplorer[T any](model []T, increment []T) IncrementalExplorer[T] {
 	return IncrementalExplorer[T]{
-		model: model,
+		model:     model,
 		increment: increment,
 	}
 }
@@ -23,20 +25,28 @@ func (explorer *IncrementalExplorer[T]) Increment(executions ...T) int {
 	if len(executions) == 0 {
 		panic("cannot increment with no executions")
 	}
-	index := len(explorer.model) - 1 + len(explorer.increment)
+	index := len(explorer.model) + len(explorer.increment)
 	explorer.increment = append(explorer.increment, executions...)
 	return index
 }
 
 // Pops the executions from the increment.
 func (explorer *IncrementalExplorer[T]) Decrement(amount int) {
+	if amount < 0 {
+		panic("cannot decrement by a negative number")
+	}
+	if amount == 0 {
+		return
+	}
+
 	length := len(explorer.increment)
-	explorer.increment = slices.Delete(explorer.increment, length-amount-1, length-1)
+	explorer.increment = slices.Delete(explorer.increment, length-amount, length)
 }
 
 // Finishes the increment and moves the executions to the model.
 func (explorer *IncrementalExplorer[T]) Commit() {
 	explorer.model = append(explorer.model, explorer.increment...)
+	explorer.increment = nil
 }
 
 // Finishes the increment by deleting the increment.
@@ -44,18 +54,26 @@ func (explorer *IncrementalExplorer[T]) Rollback() {
 	explorer.increment = nil
 }
 
+// Updates an entry in the model. This does not work for
+// elements in the increment which has not been committed yet.
 func (explorer *IncrementalExplorer[T]) Update(index int, value T) {
 	explorer.model[index] = value
 }
 
+// Returns the model of the incremental explorer which is the set of executions
+// that should not solely be in an exploration permutation.
 func (explorer *IncrementalExplorer[T]) Model() []T {
 	return explorer.model
 }
 
+// Returns the increment of the incremental explorer which is the set where
+// for every tested assertion every assignment must have had atleast one assignment
+// to an element in the increment.
 func (explorer *IncrementalExplorer[T]) Incremental() []T {
 	return explorer.increment
 }
 
+// The number of elements in the current increment.
 func (explorer *IncrementalExplorer[T]) IncrementLength() int {
 	return len(explorer.increment)
 }
@@ -69,8 +87,15 @@ func (explorer *IncrementalExplorer[T]) Explore(scope Scope, assertion Predicate
 	// Initialise all assignments for all quantifiers within the scope.
 	assignments := make([]T, scope.Size())
 	if len(assignments) == 0 {
-		satisfied := assertion.predicate([]T{})
+		satisfied := assertion.predicate(nil)
 		return LiftBoolean(satisfied)
+	}
+
+	// If there are no increment then we dont test it.  However, we know
+	// per the invariant that the model must be a set which satifies the
+	// assertion and therefore we return true.
+	if explorer.IncrementLength() == 0 {
+		return LiftedTrue
 	}
 
 	var Exists func(depth, offset int) LiftedBoolean
@@ -113,8 +138,8 @@ func (explorer *IncrementalExplorer[T]) Explore(scope Scope, assertion Predicate
 	// Generate all assignments for universal variables.
 	// TODO: Convert the ranging over assignments for the quantifier to a strategy.
 	for permutation := range iterx.Map(
-		explorer.model, iterx.IncrementalPermutations(
-			scope.UniversalSize(), len(explorer.model)+len(explorer.increment), len(explorer.increment),
+		append(explorer.model, explorer.increment...), iterx.IncrementalPermutations(
+			scope.UniversalSize(), len(explorer.model), len(explorer.increment),
 		),
 	) {
 		//For each assignment of universal variables:

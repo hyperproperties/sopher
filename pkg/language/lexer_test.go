@@ -27,7 +27,7 @@ func TestConsumeWord(t *testing.T) {
 	assert.True(t, found)
 	assert.Equal(t, len(str), lookahead)
 
-	lexer.consumeWord(prefix, skip, body, suffix)
+	lexer.consumeWords(prefix, skip, body, suffix)
 	_, exists := lexer.next()
 	assert.False(t, exists)
 }
@@ -138,7 +138,7 @@ assume: forall e0.in >= 0
 		GuaranteeToken, ScopeDelimiterToken,
 		ExistsToken, IdentifierToken, ScopeDelimiterToken,
 		ExpressionToken, ExpressionDelimiterToken,
-		EofToken,
+		EndToken,
 	}
 
 	tokens := iterx.Collect(LexString(source))
@@ -158,172 +158,172 @@ func TestLexClasses(t *testing.T) {
 		{
 			description: "region with name",
 			input:       "region dasa ba123 c :",
-			classes:     []TokenClass{RegionToken, IdentifierToken, IdentifierToken, IdentifierToken, ScopeDelimiterToken, EofToken},
+			classes:     []TokenClass{RegionToken, IdentifierToken, IdentifierToken, IdentifierToken, ScopeDelimiterToken, EndToken},
 		},
 		{
 			description: "assumption",
 			input:       "assume   :   ",
-			classes:     []TokenClass{AssumeToken, ScopeDelimiterToken, EofToken},
+			classes:     []TokenClass{AssumeToken, ScopeDelimiterToken, EndToken},
 		},
 		{
 			description: "guarantee",
 			input:       "guarantee:",
-			classes:     []TokenClass{GuaranteeToken, ScopeDelimiterToken, EofToken},
+			classes:     []TokenClass{GuaranteeToken, ScopeDelimiterToken, EndToken},
 		},
 		{
 			description: "forall",
 			input:       "forall a  b d   .",
-			classes:     []TokenClass{ForallToken, IdentifierToken, IdentifierToken, IdentifierToken, ScopeDelimiterToken, EofToken},
+			classes:     []TokenClass{ForallToken, IdentifierToken, IdentifierToken, IdentifierToken, ScopeDelimiterToken, EndToken},
 		},
 		{
 			description: "guarantee forall",
 			input:       "guarantee: forall a  b d   .",
-			classes:     []TokenClass{GuaranteeToken, ScopeDelimiterToken, ForallToken, IdentifierToken, IdentifierToken, IdentifierToken, ScopeDelimiterToken, EofToken},
+			classes:     []TokenClass{GuaranteeToken, ScopeDelimiterToken, ForallToken, IdentifierToken, IdentifierToken, IdentifierToken, ScopeDelimiterToken, EndToken},
 		},
 		{
 			description: "guarantee forall exists",
 			input:       "guarantee: forall ab  basd c   . exists d.",
-			classes:     []TokenClass{GuaranteeToken, ScopeDelimiterToken, ForallToken, IdentifierToken, IdentifierToken, IdentifierToken, ScopeDelimiterToken, ExistsToken, IdentifierToken, ScopeDelimiterToken, EofToken},
+			classes:     []TokenClass{GuaranteeToken, ScopeDelimiterToken, ForallToken, IdentifierToken, IdentifierToken, IdentifierToken, ScopeDelimiterToken, ExistsToken, IdentifierToken, ScopeDelimiterToken, EndToken},
 		},
 		{
 			description: "empty expression",
 			input:       "   ;  ",
-			classes:     []TokenClass{ExpressionDelimiterToken, EofToken},
+			classes:     []TokenClass{ExpressionDelimiterToken, EndToken},
 		},
 		{
 			description: "right parenthesis",
 			input:       "   )  ",
-			classes:     []TokenClass{RightParenthesis, EofToken},
+			classes:     []TokenClass{RightParenthesis, EndToken},
 		},
 		{
 			description: "left forall parenthesis",
 			input:       "   (  forall a. )",
-			classes:     []TokenClass{LeftParenthesis, ForallToken, IdentifierToken, ScopeDelimiterToken, RightParenthesis, EofToken},
+			classes:     []TokenClass{LeftParenthesis, ForallToken, IdentifierToken, ScopeDelimiterToken, RightParenthesis, EndToken},
 		},
 		{
 			description: "left forall parenthesis",
 			input:       "   (  forall a. forall b. )",
-			classes:     []TokenClass{LeftParenthesis, ForallToken, IdentifierToken, ScopeDelimiterToken, ForallToken, IdentifierToken, ScopeDelimiterToken, RightParenthesis, EofToken},
+			classes:     []TokenClass{LeftParenthesis, ForallToken, IdentifierToken, ScopeDelimiterToken, ForallToken, IdentifierToken, ScopeDelimiterToken, RightParenthesis, EndToken},
 		},
 		{
 			description: "empty input",
 			input:       "",
-			classes:     []TokenClass{EofToken},
+			classes:     []TokenClass{EndToken},
 		},
 		{
 			description: "grouped empty expression",
 			input:       "( ; )",
-			classes:     []TokenClass{LeftParenthesis, ExpressionDelimiterToken, RightParenthesis, EofToken},
+			classes:     []TokenClass{LeftParenthesis, ExpressionDelimiterToken, RightParenthesis, EndToken},
 		},
 		{
 			description: "Single unnamed region",
 			input:       "region :",
-			classes:     []TokenClass{RegionToken, ScopeDelimiterToken, EofToken},
+			classes:     []TokenClass{RegionToken, ScopeDelimiterToken, EndToken},
 		},
 		{
 			description: "Single named region",
 			input:       "region Positive :",
-			classes:     []TokenClass{RegionToken, IdentifierToken, ScopeDelimiterToken, EofToken},
+			classes:     []TokenClass{RegionToken, IdentifierToken, ScopeDelimiterToken, EndToken},
 		},
 		{
 			description: "Two named regions",
 			input:       "region Positive : region Negative :",
-			classes:     []TokenClass{RegionToken, IdentifierToken, ScopeDelimiterToken, RegionToken, IdentifierToken, ScopeDelimiterToken, EofToken},
+			classes:     []TokenClass{RegionToken, IdentifierToken, ScopeDelimiterToken, RegionToken, IdentifierToken, ScopeDelimiterToken, EndToken},
 		},
 		{
 			description: "No region just a quantifier",
 			input:       "forall e0 .",
-			classes:     []TokenClass{ForallToken, IdentifierToken, ScopeDelimiterToken, EofToken},
+			classes:     []TokenClass{ForallToken, IdentifierToken, ScopeDelimiterToken, EndToken},
 		},
 		{
 			description: "No region two quantifiers",
 			input:       "forall e0 . exists e1 .",
-			classes:     []TokenClass{ForallToken, IdentifierToken, ScopeDelimiterToken, ExistsToken, IdentifierToken, ScopeDelimiterToken, EofToken},
+			classes:     []TokenClass{ForallToken, IdentifierToken, ScopeDelimiterToken, ExistsToken, IdentifierToken, ScopeDelimiterToken, EndToken},
 		},
 		{
 			description: "assumption with quantifier",
 			input:       "assume: forall e0.",
-			classes:     []TokenClass{AssumeToken, ScopeDelimiterToken, ForallToken, IdentifierToken, ScopeDelimiterToken, EofToken},
+			classes:     []TokenClass{AssumeToken, ScopeDelimiterToken, ForallToken, IdentifierToken, ScopeDelimiterToken, EndToken},
 		},
 		{
 			description: "two assumptions with a quantifier and no region",
 			input:       "assume: forall e0. assume: exists e0.",
-			classes:     []TokenClass{AssumeToken, ScopeDelimiterToken, ForallToken, IdentifierToken, ScopeDelimiterToken, AssumeToken, ScopeDelimiterToken, ExistsToken, IdentifierToken, ScopeDelimiterToken, EofToken},
+			classes:     []TokenClass{AssumeToken, ScopeDelimiterToken, ForallToken, IdentifierToken, ScopeDelimiterToken, AssumeToken, ScopeDelimiterToken, ExistsToken, IdentifierToken, ScopeDelimiterToken, EndToken},
 		},
 		{
 			description: "region without identifiers",
 			input:       "region :",
-			classes:     []TokenClass{RegionToken, ScopeDelimiterToken, EofToken},
+			classes:     []TokenClass{RegionToken, ScopeDelimiterToken, EndToken},
 		},
 		{
 			description: "region without identifiers newline seperated",
 			input:       "region:",
-			classes:     []TokenClass{RegionToken, ScopeDelimiterToken, EofToken},
+			classes:     []TokenClass{RegionToken, ScopeDelimiterToken, EndToken},
 		},
 		{
 			description: "region with an identifier",
 			input:       "region a :",
-			classes:     []TokenClass{RegionToken, IdentifierToken, ScopeDelimiterToken, EofToken},
+			classes:     []TokenClass{RegionToken, IdentifierToken, ScopeDelimiterToken, EndToken},
 		},
 		{
 			description: "region with two identifiers",
 			input:       "region a b :",
-			classes:     []TokenClass{RegionToken, IdentifierToken, IdentifierToken, ScopeDelimiterToken, EofToken},
+			classes:     []TokenClass{RegionToken, IdentifierToken, IdentifierToken, ScopeDelimiterToken, EndToken},
 		},
 		{
 			description: "forall without identifiers",
 			input:       "forall a.",
-			classes:     []TokenClass{ForallToken, IdentifierToken, ScopeDelimiterToken, EofToken},
+			classes:     []TokenClass{ForallToken, IdentifierToken, ScopeDelimiterToken, EndToken},
 		},
 		{
 			description: "empty exists",
 			input:       "exists a.",
-			classes:     []TokenClass{ExistsToken, ScopeDelimiterToken, IdentifierToken, EofToken},
+			classes:     []TokenClass{ExistsToken, ScopeDelimiterToken, IdentifierToken, EndToken},
 		},
 		{
 			description: "assume with true",
 			input:       "assume: true ;",
-			classes:     []TokenClass{AssumeToken, ScopeDelimiterToken, ExpressionToken, ExpressionDelimiterToken, EofToken},
+			classes:     []TokenClass{AssumeToken, ScopeDelimiterToken, ExpressionToken, ExpressionDelimiterToken, EndToken},
 		},
 		{
 			description: "assume with large expression",
 			input:       "assume: a == b && check(a, b) ;",
-			classes:     []TokenClass{AssumeToken, ScopeDelimiterToken, ExpressionToken, ExpressionDelimiterToken, EofToken},
+			classes:     []TokenClass{AssumeToken, ScopeDelimiterToken, ExpressionToken, ExpressionDelimiterToken, EndToken},
 		},
 		{
 			description: "guarantee with large expression",
 			input:       "guarantee: a == b && a == c ;",
-			classes:     []TokenClass{GuaranteeToken, ScopeDelimiterToken, ExpressionToken, ExpressionDelimiterToken, EofToken},
+			classes:     []TokenClass{GuaranteeToken, ScopeDelimiterToken, ExpressionToken, ExpressionDelimiterToken, EndToken},
 		},
 		{
 			description: "assume with expression delimiter but no expression",
 			input:       "assume: ;",
-			classes:     []TokenClass{AssumeToken, ScopeDelimiterToken, ExpressionDelimiterToken, EofToken},
+			classes:     []TokenClass{AssumeToken, ScopeDelimiterToken, ExpressionDelimiterToken, EndToken},
 		},
 		{
 			description: "empty region, assumption, and forall",
 			input:       "region : assume : ; forall a.",
-			classes:     []TokenClass{RegionToken, ScopeDelimiterToken, AssumeToken, ScopeDelimiterToken, ExpressionDelimiterToken, ForallToken, IdentifierToken, ScopeDelimiterToken, EofToken},
+			classes:     []TokenClass{RegionToken, ScopeDelimiterToken, AssumeToken, ScopeDelimiterToken, ExpressionDelimiterToken, ForallToken, IdentifierToken, ScopeDelimiterToken, EndToken},
 		},
 		{
 			description: "region with name newline delimiter",
 			input:       "region SomeName:",
-			classes:     []TokenClass{RegionToken, IdentifierToken, ScopeDelimiterToken, EofToken},
+			classes:     []TokenClass{RegionToken, IdentifierToken, ScopeDelimiterToken, EndToken},
 		},
 		{
 			description: "named region, forall, and assumption",
 			input:       "region SomeName: forall a . assume: false && true",
-			classes:     []TokenClass{RegionToken, IdentifierToken, ScopeDelimiterToken, ForallToken, IdentifierToken, ScopeDelimiterToken, AssumeToken, ScopeDelimiterToken, ExpressionToken, ExpressionDelimiterToken, EofToken},
+			classes:     []TokenClass{RegionToken, IdentifierToken, ScopeDelimiterToken, ForallToken, IdentifierToken, ScopeDelimiterToken, AssumeToken, ScopeDelimiterToken, ExpressionToken, ExpressionDelimiterToken, EndToken},
 		},
 		{
 			description: "multiple named regions",
 			input:       "region positive: assume: true; region negative: assume: false",
-			classes:     []TokenClass{RegionToken, IdentifierToken, ScopeDelimiterToken, AssumeToken, ScopeDelimiterToken, ExpressionToken, ExpressionDelimiterToken, RegionToken, IdentifierToken, ScopeDelimiterToken, AssumeToken, ScopeDelimiterToken, ExpressionToken, ExpressionDelimiterToken, EofToken},
+			classes:     []TokenClass{RegionToken, IdentifierToken, ScopeDelimiterToken, AssumeToken, ScopeDelimiterToken, ExpressionToken, ExpressionDelimiterToken, RegionToken, IdentifierToken, ScopeDelimiterToken, AssumeToken, ScopeDelimiterToken, ExpressionToken, ExpressionDelimiterToken, EndToken},
 		},
 		{
 			description: "multiple named regions",
 			input:       "assume: false",
-			classes:     []TokenClass{AssumeToken, ScopeDelimiterToken, ExpressionToken, ExpressionDelimiterToken, EofToken},
+			classes:     []TokenClass{AssumeToken, ScopeDelimiterToken, ExpressionToken, ExpressionDelimiterToken, EndToken},
 		},
 	}
 
@@ -371,20 +371,33 @@ func Self(in a) int {
 }
 `
 
+	GoComments := func(doc []*ast.Comment) (comments []string) {
+		for _, comment := range doc {
+			comments = append(comments, comment.Text)
+		}
+		return
+	}
+
 	fset := token.NewFileSet()
 
 	fileMulti, err := parser.ParseFile(fset, "", sourceMulti, parser.ParseComments)
 	assert.Nil(t, err)
-	tokensMulti := iterx.Collect(LexGo(fileMulti.Decls[0].(*ast.FuncDecl).Doc))
+	tokensMulti := iterx.Collect(
+		LexComments(GoComments(fileMulti.Decls[0].(*ast.FuncDecl).Doc.List)),
+	)
 
 	fileSingle, err := parser.ParseFile(fset, "", sourceSingle, parser.ParseComments)
 	assert.Nil(t, err)
-	tokensSingle := iterx.Collect(LexGo(fileSingle.Decls[0].(*ast.FuncDecl).Doc))
+	tokensSingle := iterx.Collect(
+		LexComments(GoComments(fileSingle.Decls[0].(*ast.FuncDecl).Doc.List)),
+	)
 
 	assert.ElementsMatch(t, tokensMulti, tokensSingle)
 }
 
-/*func FuzzLexString(f *testing.F) {
+/*
+TODO: Introduce error handling when consuming iterators such that fuzzing is actually possible.
+func FuzzLexString(f *testing.F) {
 	f.Add("guarantee a == b && a == c ;")
 	f.Add("region SomeName \n forall a . assume false && true")
 	f.Add("forall &&")

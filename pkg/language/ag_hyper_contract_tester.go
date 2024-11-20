@@ -8,6 +8,7 @@ func NewAGHyperContractTester[T any]() AGHyperContractTester[T] {
 	return AGHyperContractTester[T]{}
 }
 
+// Q: Should this behaviour be an explorer in and of itself? (See comment at top of increment_explorer.go)
 // Returns an iterator which yields the result of each execution satisfying the assumption being tested on the guaratee.
 func (filter AGHyperContractTester[T]) Test(inputs iter.Seq[T], call func(input T) (output T), contract AGHyperContract[T], model ...T) iter.Seq2[[]T, LiftedBoolean] {
 	return func(yield func([]T, LiftedBoolean) bool) {
