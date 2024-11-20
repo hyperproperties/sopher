@@ -1,0 +1,15 @@
+package examples
+
+// assume: true
+// guarantee: false
+func Foo(a, b int) (x, y int) {
+	x = a
+	y = b + a
+	return
+}
+
+// assume: forall e. e.x >= 0
+// guarantee: forall e. e.ret0 >= 2
+func Bar(x int) int {
+	return x + 2
+}
