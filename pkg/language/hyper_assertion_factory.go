@@ -12,7 +12,6 @@ import (
 type MonitorFactory struct {
 	packageName string
 	modelName   string
-	offset      int
 	variables   []string
 }
 
@@ -20,7 +19,6 @@ func NewGoMonitorFactory(packageName, modelName string) MonitorFactory {
 	return MonitorFactory{
 		packageName: packageName,
 		modelName:   modelName,
-		offset:      0,
 		variables:   make([]string, 0),
 	}
 }
@@ -28,25 +26,22 @@ func NewGoMonitorFactory(packageName, modelName string) MonitorFactory {
 func (factory *MonitorFactory) Create(node Node) *dst.CallExpr {
 	switch cdst := node.(type) {
 	case GoExpresion:
-		return factory.NewPredicateMonitorCall(cdst)
+		return factory.NewPredicate(cdst)
 	case Universal:
-		return factory.NewUniversalMonitorCall(cdst)
+		return factory.NewUniversal(cdst)
 	case Existential:
-		return factory.NewExistentialMonitorCall(cdst)
+		return factory.NewExistential(cdst)
 	case Guarantee:
 		factory.variables = nil
-		factory.offset = 0
 		return factory.Create(cdst.assertion)
 	case Assumption:
 		factory.variables = nil
-		factory.offset = 0
 		return factory.Create(cdst.assertion)
 	}
-	factory.offset = 0
 	panic(fmt.Sprintf("unknown node type %t", node))
 }
 
-func (factory *MonitorFactory) NewPredicateMonitorCall(expression GoExpresion) *dst.CallExpr {
+func (factory *MonitorFactory) NewPredicate(expression GoExpresion) *dst.CallExpr {
 	// FIXME: Can accidentally define variables not in use. First we have to see what variables are in use and only define those.
 
 	var body []dst.Stmt
@@ -115,23 +110,20 @@ func (factory *MonitorFactory) NewPredicateMonitorCall(expression GoExpresion) *
 	return &dst.CallExpr{
 		Fun: &dst.SelectorExpr{
 			X:   dst.NewIdent(factory.packageName),
-			Sel: dst.NewIdent("NewPredicateMonitor"),
+			Sel: dst.NewIdent("NewPredicateHyperAssertion"),
 		},
 		Args: []dst.Expr{predicate},
 	}
 }
 
-func (factory *MonitorFactory) NewUniversalMonitorCall(universal Universal) *dst.CallExpr {
-	offset := factory.offset
-	factory.offset += len(universal.variables)
+func (factory *MonitorFactory) NewUniversal(universal Universal) *dst.CallExpr {
 	factory.variables = append(factory.variables, universal.variables...)
 	call := &dst.CallExpr{
 		Fun: &dst.SelectorExpr{
 			X:   dst.NewIdent(factory.packageName),
-			Sel: dst.NewIdent("NewUniversalMonitor"),
+			Sel: dst.NewIdent("NewUniversalHyperAssertion"),
 		},
 		Args: []dst.Expr{
-			&dst.BasicLit{Kind: token.INT, Value: fmt.Sprintf("%v", offset)},
 			&dst.BasicLit{Kind: token.INT, Value: fmt.Sprintf("%v", len(universal.variables))},
 			factory.Create(universal.assertion),
 		},
@@ -139,17 +131,14 @@ func (factory *MonitorFactory) NewUniversalMonitorCall(universal Universal) *dst
 	return call
 }
 
-func (factory *MonitorFactory) NewExistentialMonitorCall(existential Existential) *dst.CallExpr {
-	offset := factory.offset
-	factory.offset += len(existential.variables)
+func (factory *MonitorFactory) NewExistential(existential Existential) *dst.CallExpr {
 	factory.variables = append(factory.variables, existential.variables...)
 	call := &dst.CallExpr{
 		Fun: &dst.SelectorExpr{
 			X:   dst.NewIdent(factory.packageName),
-			Sel: dst.NewIdent("NewExistentialMonitor"),
+			Sel: dst.NewIdent("NewExistentialHyperAssertion"),
 		},
 		Args: []dst.Expr{
-			&dst.BasicLit{Kind: token.INT, Value: fmt.Sprintf("%v", offset)},
 			&dst.BasicLit{Kind: token.INT, Value: fmt.Sprintf("%v", len(existential.variables))},
 			factory.Create(existential.assertion),
 		},

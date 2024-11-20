@@ -92,7 +92,7 @@ func (injector Injector) OutputFields(function *dst.FuncDecl) (fields []*dst.Fie
 	return fields
 }
 
-func (injector Injector) Model(function *dst.FuncDecl) (string, *dst.GenDecl) {
+func (injector Injector) DeclareModel(function *dst.FuncDecl) (string, *dst.GenDecl) {
 	name := function.Name.Name
 
 	fields := make([]*dst.Field, 0)
@@ -138,33 +138,29 @@ func (injector Injector) Contract(model string, function *dst.FuncDecl) (string,
 
 	constructor := &dst.CallExpr{
 		Fun: &dst.SelectorExpr{
-			Sel: dst.NewIdent("NewAGContract"),
+			Sel: dst.NewIdent("NewAGHyperContract"),
 			X:   dst.NewIdent("sopher"),
 		},
 		Args: []dst.Expr{
-			&dst.CompositeLit{
-				Type: &dst.ArrayType{
-					Elt: &dst.IndexExpr{
-						X: &dst.SelectorExpr{
-							Sel: dst.NewIdent("IncrementalMonitor"),
-							X:   dst.NewIdent("sopher"),
-						},
-						Index: dst.NewIdent(model),
+			&dst.CallExpr{
+				Fun: &dst.IndexExpr{
+					X: &dst.SelectorExpr{
+						Sel: dst.NewIdent("NewAllAssertion"),
+						X:   dst.NewIdent("sopher"),
 					},
+					Index: dst.NewIdent(model),
 				},
-				Elts: assumptionList,
+				Args: assumptionList,
 			},
-			&dst.CompositeLit{
-				Type: &dst.ArrayType{
-					Elt: &dst.IndexExpr{
-						X: &dst.SelectorExpr{
-							Sel: dst.NewIdent("IncrementalMonitor"),
-							X:   dst.NewIdent("sopher"),
-						},
-						Index: dst.NewIdent(model),
+			&dst.CallExpr{
+				Fun: &dst.IndexExpr{
+					X: &dst.SelectorExpr{
+						Sel: dst.NewIdent("NewAllAssertion"),
+						X:   dst.NewIdent("sopher"),
 					},
+					Index: dst.NewIdent(model),
 				},
-				Elts: guaranteeList,
+				Args: guaranteeList,
 			},
 		},
 	}
@@ -181,7 +177,7 @@ func (injector Injector) Contract(model string, function *dst.FuncDecl) (string,
 				Type: &dst.IndexExpr{
 					X: &dst.SelectorExpr{
 						X:   dst.NewIdent("sopher"),
-						Sel: dst.NewIdent("AGContract"),
+						Sel: dst.NewIdent("AGHyperContract"),
 					},
 					Index: dst.NewIdent(model),
 				},
@@ -191,7 +187,7 @@ func (injector Injector) Contract(model string, function *dst.FuncDecl) (string,
 	}
 }
 
-func (injector Injector) Wrap(function *dst.FuncDecl) *dst.AssignStmt {
+func (injector Injector) DeclareWrap(function *dst.FuncDecl) *dst.AssignStmt {
 	var TypeParams *dst.FieldList = nil
 	if function.Type.TypeParams != nil {
 		TypeParams = dst.Clone(function.Type.TypeParams).(*dst.FieldList)
@@ -225,6 +221,53 @@ func (injector Injector) Wrap(function *dst.FuncDecl) *dst.AssignStmt {
 	}
 }
 
+func (injector Injector) DeclareCall(model string, function *dst.FuncDecl) *dst.AssignStmt {
+	body := make([]dst.Stmt, 0)
+	body = append(body, injector.DeclareWrap(function))
+	body = append(body, injector.CallWrap(function))
+	for _, update := range injector.Updates(function) {
+		body = append(body, update)
+	}
+	body = append(body, &dst.ReturnStmt{
+		Results: []dst.Expr{
+			dst.NewIdent("execution"),
+		},
+	})
+
+	return &dst.AssignStmt{
+		Lhs: []dst.Expr{
+			dst.NewIdent("call"),
+		},
+		Tok: token.DEFINE,
+		Rhs: []dst.Expr{
+			&dst.FuncLit{
+				Type: &dst.FuncType{
+					Params: &dst.FieldList{
+						List: []*dst.Field{
+							{
+								Names: []*dst.Ident{
+									dst.NewIdent("execution"),
+								},
+								Type: dst.NewIdent(model),
+							},
+						},
+					},
+					Results: &dst.FieldList{
+						List: []*dst.Field{
+							{
+								Type: dst.NewIdent(model),
+							},
+						},
+					},
+				},
+				Body: &dst.BlockStmt{
+					List: body,
+				},
+			},
+		},
+	}
+}
+
 func (injector Injector) ConstructModel(model string, function *dst.FuncDecl) *dst.AssignStmt {
 	fields := make([]dst.Expr, 0)
 	for _, field := range function.Type.Params.List {
@@ -250,19 +293,11 @@ func (injector Injector) ConstructModel(model string, function *dst.FuncDecl) *d
 	}
 }
 
-func (injector Injector) Check(name string, contractName string) *dst.IfStmt {
+func (injector Injector) Check(name string) *dst.IfStmt {
 	return &dst.IfStmt{
 		Cond: &dst.CallExpr{
 			Fun: &dst.SelectorExpr{
-				X: &dst.CallExpr{
-					Fun: &dst.SelectorExpr{
-						X:   dst.NewIdent(contractName),
-						Sel: dst.NewIdent(name),
-					},
-					Args: []dst.Expr{
-						dst.NewIdent("execution"),
-					},
-				},
+				X: dst.NewIdent(name),
 				Sel: dst.NewIdent("IsFalse"),
 			},
 		},
@@ -295,7 +330,10 @@ func (injector Injector) CallWrap(function *dst.FuncDecl) *dst.AssignStmt {
 	var inputs []dst.Expr
 	for _, input := range injector.InputFields(function) {
 		for _, name := range input.Names {
-			inputs = append(inputs, dst.NewIdent(name.Name))
+			inputs = append(inputs, &dst.SelectorExpr{
+				X: dst.NewIdent("execution"),
+				Sel: dst.NewIdent(name.Name),
+			})
 		}
 	}
 
@@ -337,11 +375,37 @@ func (injector Injector) Updates(function *dst.FuncDecl) (updates []*dst.AssignS
 	return updates
 }
 
+func (injector Injector) Call(contract string) *dst.AssignStmt {
+	return &dst.AssignStmt{
+		Lhs: []dst.Expr{
+			dst.NewIdent("assumption"),
+			dst.NewIdent("execution"),
+			dst.NewIdent("guarantee"),
+		},
+		Tok: token.DEFINE,
+		Rhs: []dst.Expr{
+			&dst.CallExpr{
+				Fun: &dst.SelectorExpr{
+					X: dst.NewIdent(contract),
+					Sel: dst.NewIdent("Call"),
+				},
+				Args: []dst.Expr{
+					dst.NewIdent("execution"),
+					dst.NewIdent("call"),
+				},
+			},
+		},
+	}
+}
+
 func (injector Injector) Return(function *dst.FuncDecl) *dst.ReturnStmt {
 	var results []dst.Expr
 	for _, output := range injector.OutputFields(function) {
 		for _, name := range output.Names {
-			results = append(results, dst.NewIdent(name.Name))
+			results = append(results, &dst.SelectorExpr{
+				Sel: dst.NewIdent(name.Name),
+				X: dst.NewIdent("execution"),
+			})
 		}
 	}
 
@@ -359,32 +423,20 @@ func (injector Injector) Inject(file *dst.File) {
 				return true
 			}
 
-			modelName, model := injector.Model(cast)
+			modelName, model := injector.DeclareModel(cast)
 			cursor.InsertBefore(model)
 
 			contractName, contract := injector.Contract(modelName, cast)
 			cursor.InsertBefore(contract)
 
 			body := make([]dst.Stmt, 0)
+			
+			body = append(body, injector.ConstructModel(modelName, cast))
+			body = append(body, injector.DeclareCall(modelName, cast))
+			body = append(body, injector.Call(contractName))
 
-			wrap := injector.Wrap(cast)
-			body = append(body, wrap)
-
-			modelConstruction := injector.ConstructModel(modelName, cast)
-			body = append(body, modelConstruction)
-
-			assumptionCheck := injector.Check("Assume", contractName)
-			body = append(body, assumptionCheck)
-
-			wrapCall := injector.CallWrap(cast)
-			body = append(body, wrapCall)
-
-			for _, update := range injector.Updates(cast) {
-				body = append(body, update)
-			}
-
-			guaranteeCheck := injector.Check("Guarantee", contractName)
-			body = append(body, guaranteeCheck)
+			body = append(body, injector.Check("assumption"))
+			body = append(body, injector.Check("guarantee"))
 
 			returnStmt := injector.Return(cast)
 			body = append(body, returnStmt)

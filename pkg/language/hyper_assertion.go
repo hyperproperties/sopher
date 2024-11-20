@@ -31,11 +31,19 @@ var (
 
 type AllAssertion[T any] []HyperAssertion[T]
 
+func NewAllAssertion[T any](assertions ...HyperAssertion[T]) AllAssertion[T] {
+	return AllAssertion[T](assertions)
+}
+
 func (assertion AllAssertion[T]) Accept(visitor HyperAssertionVisitor[T]) {
 	visitor.AllAssertion(assertion)
 }
 
 type AnyAssertion[T any] []HyperAssertion[T]
+
+func NewAnyAssertion[T any](assertions ...HyperAssertion[T]) AnyAssertion[T] {
+	return AnyAssertion[T](assertions)
+}
 
 func (assertion AnyAssertion[T]) Accept(visitor HyperAssertionVisitor[T]) {
 	visitor.AnyAssertion(assertion)

@@ -9,7 +9,7 @@ func NewAGHyperContractTester[T any]() AGHyperContractTester[T] {
 }
 
 // Returns an iterator which yields the result of each execution satisfying the assumption being tested on the guaratee.
-func (filter AGHyperContractTester[T]) Test(inputs iter.Seq[T], contract AGHyperContract[T], model ...T) iter.Seq2[[]T, LiftedBoolean] {
+func (filter AGHyperContractTester[T]) Test(inputs iter.Seq[T], call func(input T) (output T), contract AGHyperContract[T], model ...T) iter.Seq2[[]T, LiftedBoolean] {
 	return func(yield func([]T, LiftedBoolean) bool) {
 		// Create the incremental interpreter with the existing model.
 		explorer := NewIncrementalExplorer(model, nil)
@@ -22,7 +22,7 @@ func (filter AGHyperContractTester[T]) Test(inputs iter.Seq[T], contract AGHyper
 
 			// The assumption was satisfied and therfore we call the function and update the entry in the model.
 			if satAssume.IsTrue() {
-				output := contract.call(input)
+				output := call(input)
 				// It is okay to update because the call does not change any state used to check the assumptions.
 				explorer.Update(idx, output)
 

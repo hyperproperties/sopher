@@ -4,19 +4,15 @@ import "github.com/hyperproperties/sopher/pkg/quick"
 
 type AGHyperContract[T any] struct {
 	assumption HyperAssertion[T]
-	call       func(input T) (output T)
 	guarantee  HyperAssertion[T]
 	explorer   IncrementalExplorer[T]
 }
 
 func NewAGHyperContract[T any](
-	assumptions HyperAssertion[T],
-	call func(input T) (output T),
-	guarantees HyperAssertion[T],
+	assumptions, guarantees HyperAssertion[T],
 ) AGHyperContract[T] {
 	return AGHyperContract[T]{
 		assumption: assumptions,
-		call:       call,
 		guarantee:  guarantees,
 		explorer:   NewIncrementalExplorer[T](nil, nil),
 	}
@@ -43,12 +39,12 @@ func (contract *AGHyperContract[T]) Assume(executions ...T) (satisfied LiftedBoo
 	return satisfied
 }
 
-func (contract *AGHyperContract[T]) Call(input T) (assumption LiftedBoolean, output T, guarantee LiftedBoolean) {
+func (contract *AGHyperContract[T]) Call(input T, call func(input T) (output T)) (assumption LiftedBoolean, output T, guarantee LiftedBoolean) {
 	if assumption = contract.Assume(input); assumption.IsFalse() {
 		return
 	}
 
-	output = contract.call(input)
+	output = call(input)
 
 	if guarantee = contract.Guarantee(output); guarantee.IsTrue() {
 		contract.explorer.Increment(output)

@@ -9,7 +9,7 @@ import (
 
 func TestInjectV2(t *testing.T) {
 	_, thisFile, _, _ := runtime.Caller(0)
-	path := path.Join(filepath.Dir(thisFile), "/examples/monotone.go")
+	path := path.Join(filepath.Dir(thisFile), "/examples/foo.go")
 
 	files := NewFiles()
 	files.Add(path)

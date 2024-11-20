@@ -8,7 +8,19 @@ import (
 
 var Retain_Contract sopher.AGHyperContract[Retain_ExecutionModel] = sopher.NewAGHyperContract(
 	sopher.AllAssertion[Retain_ExecutionModel]{},
-	func(execution Retain_ExecutionModel) Retain_ExecutionModel {
+	sopher.AllAssertion[Retain_ExecutionModel]{},
+)
+
+// assume: ...
+// guarantee: ...
+func Foo(a, b int) (x, y int) {
+	// Construct the execution model without return values.
+	execution := Retain_ExecutionModel{
+		a: a,
+		b: b,
+	}
+
+	call := func(execution Retain_ExecutionModel) Retain_ExecutionModel {
 		// Wrap the body of the function.
 		wrap := func(a, b int) (x, y int) {
 			x = a
@@ -23,22 +35,10 @@ var Retain_Contract sopher.AGHyperContract[Retain_ExecutionModel] = sopher.NewAG
 
 		// Return the execution with outputs.
 		return execution
-	},
-	sopher.AllAssertion[Retain_ExecutionModel]{},
-)
-
-// assume: ...
-// guarantee: ...
-func Foo(a, b int) (x, y int) {
-	// Construct the execution model without return values.
-	execution := Retain_ExecutionModel{
-		a: a,
-		b: b,
 	}
 
-	// Execute the hyper-hoare triple.
-	assumption, guarantee := sopher.LiftedTrue, sopher.LiftedTrue
-	assumption, execution, guarantee = Retain_Contract.Call(execution)
+	// Execute the function under the contract's obligations.
+	assumption, execution, guarantee := Retain_Contract.Call(execution, call)
 
 	// Check the assumption against the assumed model.
 	if assumption.IsFalse() {

@@ -12,7 +12,7 @@ import (
 func TestNewPredicateMonitorCall(t *testing.T) {
 	factory := NewGoMonitorFactory("sopher", "ExecutionModel")
 	expression := NewGoExpression("!(e0.high == e1.high) || (e0.ret0 == e2.ret0)")
-	call := factory.NewPredicateMonitorCall(expression)
+	call := factory.NewPredicate(expression)
 	var buffer bytes.Buffer
 	printer.Fprint(&buffer, token.NewFileSet(), call)
 	assert.Equal(t, `sopher.NewPredicateMonitor(func(assignments []ExecutionModel) bool {
