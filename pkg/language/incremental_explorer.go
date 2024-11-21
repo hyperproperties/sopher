@@ -1,7 +1,5 @@
 package language
 
-// TODO: Make an explorer extending Increment Explorer with generational aspects to build the increment.
-
 import (
 	"slices"
 

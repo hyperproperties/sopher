@@ -14,6 +14,8 @@ var Retain_Contract sopher.AGHyperContract[Retain_ExecutionModel] = sopher.NewAG
 // assume: ...
 // guarantee: ...
 func Foo(a, b int) (x, y int) {
+	caller := sopher.Caller()
+
 	// Construct the execution model without return values.
 	execution := Retain_ExecutionModel{
 		a: a,
@@ -38,7 +40,7 @@ func Foo(a, b int) (x, y int) {
 	}
 
 	// Execute the function under the contract's obligations.
-	assumption, execution, guarantee := Retain_Contract.Call(execution, call)
+	assumption, execution, guarantee := Retain_Contract.Call(caller, execution, call)
 
 	// Check the assumption against the assumed model.
 	if assumption.IsFalse() {

@@ -12,6 +12,7 @@ var Foo_Contract sopher.AGHyperContract[Foo_ExecutionModel] = sopher.NewAGHyperC
 // assume: true
 // guarantee: false
 func Foo(a, b int) (x, y int) {
+	caller := sopher.Caller()
 	execution := Foo_ExecutionModel{a: a, b: b}
 	call := func(execution Foo_ExecutionModel) Foo_ExecutionModel {
 		wrap := func(a, b int) (x, y int) {
@@ -24,7 +25,7 @@ func Foo(a, b int) (x, y int) {
 		execution.y = y
 		return execution
 	}
-	assumption, execution, guarantee := Foo_Contract.Call(execution, call)
+	assumption, execution, guarantee := Foo_Contract.Call(caller, execution, call)
 	if assumption.IsFalse() {
 		panic("")
 	}
@@ -44,6 +45,7 @@ var Bar_Contract sopher.AGHyperContract[Bar_ExecutionModel] = sopher.NewAGHyperC
 // assume: forall e. e.x >= 0
 // guarantee: forall e. e.ret0 >= 2
 func Bar(x int) int {
+	caller := sopher.Caller()
 	execution := Bar_ExecutionModel{x: x}
 	call := func(execution Bar_ExecutionModel) Bar_ExecutionModel {
 		wrap := func(x int) int {
@@ -53,7 +55,7 @@ func Bar(x int) int {
 		execution.ret0 = ret0
 		return execution
 	}
-	assumption, execution, guarantee := Bar_Contract.Call(execution, call)
+	assumption, execution, guarantee := Bar_Contract.Call(caller, execution, call)
 	if assumption.IsFalse() {
 		panic("")
 	}

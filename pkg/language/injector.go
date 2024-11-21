@@ -358,18 +358,10 @@ func (injector Injector) CallWrap(function *dst.FuncDecl) *dst.AssignStmt {
 func (injector Injector) Updates(function *dst.FuncDecl) (updates []*dst.AssignStmt) {
 	for _, output := range injector.OutputFields(function) {
 		for _, name := range output.Names {
-			updates = append(updates, &dst.AssignStmt{
-				Lhs: []dst.Expr{
-					&dst.SelectorExpr{
-						X:   dst.NewIdent("execution"),
-						Sel: dst.NewIdent(name.Name),
-					},
-				},
-				Tok: token.ASSIGN,
-				Rhs: []dst.Expr{
-					dst.NewIdent(name.Name),
-				},
-			})
+			assignment := dstx.Assign(
+				dstx.SelectS(name.Name).FromS("execution"),
+			).ToS(name.Name)
+			updates = append(updates, assignment)
 		}
 	}
 
@@ -377,8 +369,8 @@ func (injector Injector) Updates(function *dst.FuncDecl) (updates []*dst.AssignS
 }
 
 func (injector Injector) Call(contract string) *dst.AssignStmt {
-	return dstx.DefineS("assumption", "execution","guarantee").As(
-		dstx.Call(dstx.SelectS("Call").FromS(contract)).PassS("execution", "call"),
+	return dstx.DefineS("assumption", "execution", "guarantee").As(
+		dstx.Call(dstx.SelectS("Call").FromS(contract)).PassS("caller", "execution", "call"),
 	)
 }
 
@@ -391,6 +383,10 @@ func (injector Injector) Return(function *dst.FuncDecl) *dst.ReturnStmt {
 	}
 
 	return dstx.Return(results...)
+}
+
+func (injector Injector) GetCaller() *dst.AssignStmt {
+	return dstx.DefineS("caller").As(dstx.Call(dstx.SelectS("Caller").FromS("sopher")).Pass())
 }
 
 func (injector Injector) Inject(file *dst.File) {
@@ -413,6 +409,7 @@ func (injector Injector) Inject(file *dst.File) {
 				Name: cast.Name,
 				Type: cast.Type,
 				Body: dstx.Block(
+					injector.GetCaller(),
 					injector.ConstructModel(modelName, cast),
 					injector.DeclareCall(modelName, cast),
 					injector.Call(contractName),

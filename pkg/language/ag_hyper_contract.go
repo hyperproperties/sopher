@@ -1,11 +1,9 @@
 package language
 
-import "github.com/hyperproperties/sopher/pkg/quick"
-
 type AGHyperContract[T any] struct {
 	assumption HyperAssertion[T]
 	guarantee  HyperAssertion[T]
-	explorer   IncrementalExplorer[T]
+	models     map[uint64][]T
 }
 
 func NewAGHyperContract[T any](
@@ -14,47 +12,51 @@ func NewAGHyperContract[T any](
 	return AGHyperContract[T]{
 		assumption: assumptions,
 		guarantee:  guarantees,
-		explorer:   NewIncrementalExplorer[T](nil, nil),
+		models: map[uint64][]T{},
 	}
 }
 
-func (contract *AGHyperContract[T]) Assume(executions ...T) (satisfied LiftedBoolean) {
-	satisfied = LiftedTrue
-
-	interpreter := NewInterpreter(&contract.explorer)
-	start := contract.explorer.IncrementLength()
-	contract.explorer.Increment(executions...)
-
-	// TODO: Add a contract configuration that allows a user defined loop-termination criteria.
-	for counter := 0; counter < 1000; counter++ {
-		if satisfied = interpreter.Satisfies(contract.assumption); satisfied.IsTrue() {
-			break
-		}
-		contract.explorer.Increment(quick.New[T]())
-	}
-
-	end := contract.explorer.IncrementLength()
-	contract.explorer.Decrement(end - start)
-
+// Checks if a set of executions from a caller satisfies the assertion given its existing model.
+func (contract *AGHyperContract[T]) Satisfies(caller uint64, assertion HyperAssertion[T], executions ...T) LiftedBoolean {
+	model := contract.models[caller]
+	explorer := NewIncrementalExplorer(model, executions)
+	interpreter := NewInterpreter(&explorer)
+	satisfied := interpreter.Satisfies(assertion)
 	return satisfied
 }
 
-func (contract *AGHyperContract[T]) Call(input T, call func(input T) (output T)) (assumption LiftedBoolean, output T, guarantee LiftedBoolean) {
-	if assumption = contract.Assume(input); assumption.IsFalse() {
+// Checks if the caller and the executions (as an increment) satisfies the contract's assumption.
+func (contract *AGHyperContract[T]) Assume(caller uint64, executions ...T) LiftedBoolean {
+	return contract.Satisfies(caller, contract.assumption, executions...)
+}
+
+// Calls the function (call) with the input as the caller. If the guarantee is
+// not not-satisfied then the output is appended to the model of the caller. 
+func (contract *AGHyperContract[T]) Call(
+	caller uint64, input T, call func(input T) (output T),
+) (assumption LiftedBoolean, output T, guarantee LiftedBoolean) {
+	assumption, guarantee = LiftedFalse, LiftedFalse
+
+	if assumption = contract.Assume(caller, input); assumption.IsFalse() {
 		return
 	}
 
 	output = call(input)
 
-	if guarantee = contract.Guarantee(output); guarantee.IsTrue() {
-		contract.explorer.Increment(output)
-		contract.explorer.Commit()
+	if guarantee = contract.Guarantee(caller, output); guarantee.IsFalse() {
+		return
+	}
+
+	if model, exists := contract.models[caller]; exists {
+		contract.models[caller] = append(model, output)
+	} else {
+		contract.models[caller] = []T{output}
 	}
 
 	return assumption, output, guarantee
 }
 
-func (contract *AGHyperContract[T]) Guarantee(executions ...T) (satisfied LiftedBoolean) {
-	// FIXME: Implement a test here.
-	return LiftedTrue
+// Checks if the caller and the executions (as an increment) satisfies the contract's guarantee.
+func (contract *AGHyperContract[T]) Guarantee(caller uint64, executions ...T) LiftedBoolean {
+	return contract.Satisfies(caller, contract.guarantee, executions...)
 }
