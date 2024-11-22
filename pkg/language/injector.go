@@ -23,56 +23,22 @@ func NewGoInjector() Injector {
 
 func (injector Injector) Imports(file *dst.File, imports map[string]string) {
 	specs := make([]dst.Spec, 0)
-
 	for name, path := range imports {
-		importSpec := &dst.ImportSpec{
-			Name: dst.NewIdent(name),
-			Path: &dst.BasicLit{
-				Kind:  token.STRING,
-				Value: fmt.Sprintf("\"%v\"", path),
-			},
-		}
-
+		importSpec := dstx.ImportS(name, path)
 		file.Imports = append(file.Imports, importSpec)
 		specs = append(specs, importSpec)
 	}
 
-	exists := false
-
-	// import declaration already exist.
-	for _, decl := range file.Decls {
-		if cast, ok := decl.(*dst.GenDecl); ok && cast.Tok == token.IMPORT {
-			cast.Specs = append(cast.Specs, specs...)
-			exists = true
-			break
-		}
-	}
-
-	// No import so we create one.
-	if !exists {
-		genDecl := &dst.GenDecl{
-			Tok:   token.IMPORT,
-			Specs: specs,
-		}
-
-		file.Decls = append([]dst.Decl{genDecl}, file.Decls...)
+	if declaration := dstx.FindImportDeclaration(file.Decls); declaration != nil {
+		declaration.Specs = append(declaration.Specs, specs...)
+	} else {
+		declaration := dstx.DeclareImports(specs...)
+		file.Decls = append([]dst.Decl{declaration}, file.Decls...)
 	}
 }
 
 func (injector Injector) InputFields(function *dst.FuncDecl) (fields []*dst.Field) {
-	for _, input := range function.Type.Params.List {
-		fields = append(fields, dst.Clone(input).(*dst.Field))
-	}
-	return fields
-}
-
-func (injector Injector) HasNamedOutputs(function *dst.FuncDecl) bool {
-	for _, output := range function.Type.Results.List {
-		if len(output.Names) > 0 {
-			return true
-		}
-	}
-	return false
+	return dstx.Clones(function.Type.Params.List)
 }
 
 func (injector Injector) OutputFields(function *dst.FuncDecl) (fields []*dst.Field) {
@@ -339,7 +305,7 @@ func (injector Injector) CallWrap(function *dst.FuncDecl) *dst.AssignStmt {
 	}
 
 	operator := token.DEFINE
-	if injector.HasNamedOutputs(function) {
+	if dstx.HasNamedOutputs(function) {
 		operator = token.ASSIGN
 	}
 

@@ -3,6 +3,10 @@ package language
 // Represents a first in first out data structure with push and pop.
 type Stack[T any] []T
 
+func NewStack[T any](stack ...T) Stack[T] {
+	return stack
+}
+
 // Pushes the elements to the stack.
 func (stack *Stack[T]) Push(elements ...T) {
 	*stack = append(*stack, elements...)
@@ -23,4 +27,8 @@ func (stack *Stack[T]) Peek() T {
 	length := len(*stack)
 	top := (*stack)[length-1]
 	return top
+}
+
+func (stack Stack[T]) Top() int {
+	return len(*&stack)-1
 }

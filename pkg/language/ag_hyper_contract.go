@@ -12,7 +12,7 @@ func NewAGHyperContract[T any](
 	return AGHyperContract[T]{
 		assumption: assumptions,
 		guarantee:  guarantees,
-		models: map[uint64][]T{},
+		models:     map[uint64][]T{},
 	}
 }
 
@@ -31,7 +31,7 @@ func (contract *AGHyperContract[T]) Assume(caller uint64, executions ...T) Lifte
 }
 
 // Calls the function (call) with the input as the caller. If the guarantee is
-// not not-satisfied then the output is appended to the model of the caller. 
+// not not-satisfied then the output is appended to the model of the caller.
 func (contract *AGHyperContract[T]) Call(
 	caller uint64, input T, call func(input T) (output T),
 ) (assumption LiftedBoolean, output T, guarantee LiftedBoolean) {

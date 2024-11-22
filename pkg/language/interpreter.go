@@ -3,12 +3,12 @@ package language
 var _ HyperAssertionVisitor[any] = (*Interpreter[any])(nil)
 
 type Interpreter[T any] struct {
-	explorer Explorer[T]
+	explorer ExplorerV1[T]
 	scope    Scope
 	stack    Stack[LiftedBoolean]
 }
 
-func NewInterpreter[T any](explorer Explorer[T]) Interpreter[T] {
+func NewInterpreter[T any](explorer ExplorerV1[T]) Interpreter[T] {
 	return Interpreter[T]{
 		explorer: explorer,
 	}
