@@ -13,14 +13,12 @@ func TestStack(t *testing.T) {
 	for counter := 0; counter < 10000; counter++ {
 		switch rand.IntN(3) {
 		case 0: // Push an element to the stack.
-			t.Log("push")
 			oldLength := len(stack)
 			element := rand.Int()
 			stack.Push(element)
 			assert.Equal(t, oldLength+1, len(stack))
 			assert.Equal(t, element, stack.Peek())
 		case 1: // Pop an element to the stack.
-			t.Log("pop")
 			if len(stack) > 0 {
 				top := stack.Peek()
 				oldLength := len(stack)
@@ -33,7 +31,6 @@ func TestStack(t *testing.T) {
 				})
 			}
 		case 2: // Peek the top of the stack.
-			t.Log("peek")
 			if len(stack) > 0 {
 				top := stack[len(stack)-1]
 				element := stack.Peek()

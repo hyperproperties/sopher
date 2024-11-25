@@ -12,6 +12,10 @@ func Call(function dst.Expr) *CallExprBuilder {
 	}
 }
 
+func CallS(name string) *CallExprBuilder {
+	return Call(Ident(name))
+}
+
 func (builder *CallExprBuilder) PassS(arguments ...string) *dst.CallExpr {
 	return builder.Pass(StringsToExprs(arguments...)...)
 }

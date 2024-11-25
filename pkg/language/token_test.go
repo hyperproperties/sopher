@@ -74,6 +74,36 @@ func TestTokenClassString(t *testing.T) {
 			expected:    ")",
 		},
 		{
+			description: "&&",
+			class:       LogicalConjunctionToken,
+			expected:    "&&",
+		},
+		{
+			description: "||",
+			class:       LogicalDisjunctionToken,
+			expected:    "||",
+		},
+		{
+			description: "->",
+			class:       LogicalImplicationToken,
+			expected:    "->",
+		},
+		{
+			description: "<->",
+			class:       LogicalBiimplicationToken,
+			expected:    "<->",
+		},
+		{
+			description: "!",
+			class:       LogicalNegationToken,
+			expected:    "!",
+		},
+		{
+			description: ")",
+			class:       RightParenthesisToken,
+			expected:    ")",
+		},
+		{
 			description: "end",
 			class:       EndToken,
 			expected:    "end",

@@ -74,6 +74,7 @@ func (scope Scope) Size() (size int) {
 	return size
 }
 
+// Returns true if the quantifiers are only existential.
 func (scope Scope) OnlyExistential() bool {
 	if scope.Depth() == 0 {
 		return false

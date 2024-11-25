@@ -118,7 +118,8 @@ func (interpreter *Interpreter[T]) BinaryHyperAssertion(assertion BinaryHyperAss
 }
 
 func (interpreter *Interpreter[T]) PredicateHyperAssertion(assertion PredicateHyperAssertion[T]) {
-	panic("not supported yet")
+	satisfied := assertion.predicate(interpreter.assignments)
+	interpreter.stack.Push(LiftBoolean(satisfied))
 }
 
 func (interpreter *Interpreter[T]) TrueHyperAssertion(assertion TrueHyperAssertion[T]) {

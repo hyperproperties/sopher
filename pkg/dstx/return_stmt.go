@@ -7,3 +7,7 @@ func Return(expressions ...dst.Expr) *dst.ReturnStmt {
 		Results: expressions,
 	}
 }
+
+func ReturnS(idents ...string) *dst.ReturnStmt {
+	return Return(Expressions(Idents(idents...))...)
+}

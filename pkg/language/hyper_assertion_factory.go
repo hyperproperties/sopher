@@ -9,21 +9,21 @@ import (
 	"github.com/dave/dst/decorator"
 )
 
-type MonitorFactory struct {
+type AssertionFactory struct {
 	packageName string
 	modelName   string
 	variables   []string
 }
 
-func NewGoMonitorFactory(packageName, modelName string) MonitorFactory {
-	return MonitorFactory{
+func NewGoMonitorFactory(packageName, modelName string) AssertionFactory {
+	return AssertionFactory{
 		packageName: packageName,
 		modelName:   modelName,
 		variables:   make([]string, 0),
 	}
 }
 
-func (factory *MonitorFactory) Create(node Node) *dst.CallExpr {
+func (factory *AssertionFactory) Create(node Node) *dst.CallExpr {
 	switch cdst := node.(type) {
 	case GoExpresion:
 		return factory.NewPredicate(cdst)
@@ -41,7 +41,7 @@ func (factory *MonitorFactory) Create(node Node) *dst.CallExpr {
 	panic(fmt.Sprintf("unknown node type %t", node))
 }
 
-func (factory *MonitorFactory) NewPredicate(expression GoExpresion) *dst.CallExpr {
+func (factory *AssertionFactory) NewPredicate(expression GoExpresion) *dst.CallExpr {
 	// FIXME: Can accidentally define variables not in use. First we have to see what variables are in use and only define those.
 
 	var body []dst.Stmt
@@ -116,7 +116,7 @@ func (factory *MonitorFactory) NewPredicate(expression GoExpresion) *dst.CallExp
 	}
 }
 
-func (factory *MonitorFactory) NewUniversal(universal Universal) *dst.CallExpr {
+func (factory *AssertionFactory) NewUniversal(universal Universal) *dst.CallExpr {
 	factory.variables = append(factory.variables, universal.variables...)
 	call := &dst.CallExpr{
 		Fun: &dst.SelectorExpr{
@@ -131,7 +131,7 @@ func (factory *MonitorFactory) NewUniversal(universal Universal) *dst.CallExpr {
 	return call
 }
 
-func (factory *MonitorFactory) NewExistential(existential Existential) *dst.CallExpr {
+func (factory *AssertionFactory) NewExistential(existential Existential) *dst.CallExpr {
 	factory.variables = append(factory.variables, existential.variables...)
 	call := &dst.CallExpr{
 		Fun: &dst.SelectorExpr{

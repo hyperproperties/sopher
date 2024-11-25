@@ -11,7 +11,7 @@ func TestParseAssertion(t *testing.T) {
 	tests := []struct {
 		description string
 		tokens      []Token
-		assertion  Node
+		assertion   Node
 	}{
 		{
 			description: "true;",
@@ -47,7 +47,7 @@ func TestParseAssertion(t *testing.T) {
 			assertion: NewUnaryExpression(
 				LogicalNegation,
 				NewUnaryExpression(
-					LogicalNegation, 
+					LogicalNegation,
 					NewUnaryExpression(
 						LogicalNegation,
 						NewGoExpression("true"),

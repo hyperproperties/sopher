@@ -5,7 +5,7 @@ build:
 	go build ./cmd/main.go
 
 test:
-	go test ./...
+	go test ./... -v
 
 fuzz:
 	go test -fuzz=Fuzz ./pkg/language

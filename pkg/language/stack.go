@@ -29,6 +29,13 @@ func (stack *Stack[T]) Peek() T {
 	return top
 }
 
+// Returns the index of the top (or head) of the stack.
+// If the stack is empty then -1 is returned.
 func (stack Stack[T]) Top() int {
-	return len(*&stack) - 1
+	return len(stack) - 1
+}
+
+// Returns true if there are no elements in the stack.
+func (stack Stack[T]) IsEmpty() bool {
+	return len(stack) == 0
 }

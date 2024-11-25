@@ -156,135 +156,41 @@ func (injector Injector) Contract(model string, function *dst.FuncDecl) (string,
 }
 
 func (injector Injector) DeclareWrap(function *dst.FuncDecl) *dst.AssignStmt {
-	var TypeParams *dst.FieldList = nil
-	if function.Type.TypeParams != nil {
-		TypeParams = dst.Clone(function.Type.TypeParams).(*dst.FieldList)
-	}
-
-	var Params *dst.FieldList = nil
-	if function.Type.Params != nil {
-		Params = dst.Clone(function.Type.Params).(*dst.FieldList)
-	}
-
-	var Results *dst.FieldList = nil
-	if function.Type.Results != nil {
-		Results = dst.Clone(function.Type.Results).(*dst.FieldList)
-	}
-
-	return &dst.AssignStmt{
-		Lhs: []dst.Expr{
-			dst.NewIdent("wrap"),
-		},
-		Tok: token.DEFINE,
-		Rhs: []dst.Expr{
-			&dst.FuncLit{
-				Type: &dst.FuncType{
-					TypeParams: TypeParams,
-					Params:     Params,
-					Results:    Results,
-				},
-				Body: function.Body,
-			},
-		},
-	}
+	return dstx.DefineS("wrap").As(dstx.FunctionOf(function))
 }
 
 func (injector Injector) DeclareCall(model string, function *dst.FuncDecl) *dst.AssignStmt {
-	body := make([]dst.Stmt, 0)
-	body = append(body, injector.DeclareWrap(function))
-	body = append(body, injector.CallWrap(function))
-	for _, update := range injector.Updates(function) {
-		body = append(body, update)
-	}
-	body = append(body, &dst.ReturnStmt{
-		Results: []dst.Expr{
-			dst.NewIdent("execution"),
-		},
-	})
+	block := dstx.Sequence(
+		injector.DeclareWrap(function),
+		injector.CallWrap(function),
+	).Append(dstx.Statements(injector.Updates(function))...).
+		Append(dstx.ReturnS("execution"))
 
-	return &dst.AssignStmt{
-		Lhs: []dst.Expr{
-			dst.NewIdent("call"),
-		},
-		Tok: token.DEFINE,
-		Rhs: []dst.Expr{
-			&dst.FuncLit{
-				Type: &dst.FuncType{
-					Params: &dst.FieldList{
-						List: []*dst.Field{
-							{
-								Names: []*dst.Ident{
-									dst.NewIdent("execution"),
-								},
-								Type: dst.NewIdent(model),
-							},
-						},
-					},
-					Results: &dst.FieldList{
-						List: []*dst.Field{
-							{
-								Type: dst.NewIdent(model),
-							},
-						},
-					},
-				},
-				Body: &dst.BlockStmt{
-					List: body,
-				},
-			},
-		},
-	}
+	return dstx.DefineS("call").
+		As(
+			dstx.Function(
+				dstx.TakingN(dstx.FieldS("execution").TypeS(model)).
+					ResultsN(dstx.Field().TypeS(model)),
+				block.Terminate(),
+			),
+		)
 }
 
 func (injector Injector) ConstructModel(model string, function *dst.FuncDecl) *dst.AssignStmt {
-	fields := make([]dst.Expr, 0)
+	composite := dstx.ComposeS("execution")
 	for _, field := range function.Type.Params.List {
 		for _, name := range field.Names {
-			fields = append(fields, &dst.KeyValueExpr{
-				Key:   dst.NewIdent(name.Name),
-				Value: dst.NewIdent(name.Name),
-			})
+			composite.Elements(dstx.KeyS(name.Name).ValueS(name.Name))
 		}
 	}
-
-	return &dst.AssignStmt{
-		Lhs: []dst.Expr{
-			dst.NewIdent("execution"),
-		},
-		Tok: token.DEFINE,
-		Rhs: []dst.Expr{
-			&dst.CompositeLit{
-				Type: dst.NewIdent(model),
-				Elts: fields,
-			},
-		},
-	}
+	return dstx.DefineS("execution").As(composite.Final())
 }
 
 func (injector Injector) Check(name string) *dst.IfStmt {
-	return &dst.IfStmt{
-		Cond: &dst.CallExpr{
-			Fun: &dst.SelectorExpr{
-				X:   dst.NewIdent(name),
-				Sel: dst.NewIdent("IsFalse"),
-			},
-		},
-		Body: &dst.BlockStmt{
-			List: []dst.Stmt{
-				&dst.ExprStmt{
-					X: &dst.CallExpr{
-						Fun: dst.NewIdent("panic"),
-						Args: []dst.Expr{
-							&dst.BasicLit{
-								Kind:  token.STRING,
-								Value: "\"\"",
-							},
-						},
-					},
-				},
-			},
-		},
-	}
+	return dstx.
+		If(dstx.Call(dstx.SelectS("IsFalse").FromS(name)).Pass()).
+		ThenN(dstx.ExprStmt(dstx.CallS("panic").Pass(dstx.BasicString("\"\"")))).
+		End()
 }
 
 func (injector Injector) CallWrap(function *dst.FuncDecl) *dst.AssignStmt {
@@ -298,28 +204,14 @@ func (injector Injector) CallWrap(function *dst.FuncDecl) *dst.AssignStmt {
 	var inputs []dst.Expr
 	for _, input := range injector.InputFields(function) {
 		for _, name := range input.Names {
-			inputs = append(inputs, &dst.SelectorExpr{
-				X:   dst.NewIdent("execution"),
-				Sel: dst.NewIdent(name.Name),
-			})
+			inputs = append(inputs, dstx.SelectS(name.Name).FromS("execution"))
 		}
 	}
 
-	operator := token.DEFINE
 	if dstx.HasNamedOutputs(function) {
-		operator = token.ASSIGN
+		return dstx.Assign(outputs...).To(dstx.CallS("wrap").Pass(inputs...))
 	}
-
-	return &dst.AssignStmt{
-		Lhs: outputs,
-		Tok: operator,
-		Rhs: []dst.Expr{
-			&dst.CallExpr{
-				Fun:  dst.NewIdent("wrap"),
-				Args: inputs,
-			},
-		},
-	}
+	return dstx.Define(outputs...).As(dstx.CallS("wrap").Pass(inputs...))
 }
 
 func (injector Injector) Updates(function *dst.FuncDecl) (updates []*dst.AssignStmt) {
@@ -422,8 +314,8 @@ func (injector Injector) Files(files iter.Seq[string]) {
 		// Create file for instrumented version.
 		newFile, err := filesx.Create(path)
 		if err != nil {
-			// TODO: What to do here? Revert to the original file and report it?
-			panic(err)
+			filesx.Move(path+"-sopher", path)
+			// TODO: Error handling.
 		}
 
 		decorator.Fprint(newFile, dst)
@@ -432,6 +324,6 @@ func (injector Injector) Files(files iter.Seq[string]) {
 
 func (injector Injector) Restore(files iter.Seq[string]) {
 	for path := range files {
-		filesx.Move(path, path+"sopher")
+		filesx.Move(path+"-sopher", path)
 	}
 }

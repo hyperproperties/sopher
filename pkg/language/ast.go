@@ -41,7 +41,7 @@ type BinaryExpression struct {
 
 type UnaryExpression struct {
 	operator UnaryOperator
-	operand Node
+	operand  Node
 }
 
 type PredicateExpression[T any] struct {
@@ -141,15 +141,15 @@ func NewGroup(node Node) Group {
 
 func NewBinaryExpression(lhs Node, operator BinaryOperator, rhs Node) BinaryExpression {
 	return BinaryExpression{
-		lhs: lhs,
+		lhs:      lhs,
 		operator: operator,
-		rhs: rhs,
+		rhs:      rhs,
 	}
 }
 
 func NewUnaryExpression(operator UnaryOperator, operand Node) UnaryExpression {
 	return UnaryExpression{
 		operator: operator,
-		operand: operand,
+		operand:  operand,
 	}
 }

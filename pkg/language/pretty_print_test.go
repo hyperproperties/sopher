@@ -45,8 +45,8 @@ func TestPrettyPrint(t *testing.T) {
 		},
 		{
 			description: "nested quantifiers in a guarantee",
-			source: "guarantee: forall a. true; && exists b. false",
-			print: "region: guarantee: forall a. true; && exists b. false;",
+			source:      "guarantee: forall a. true; && exists b. false",
+			print:       "region: guarantee: forall a. true; && exists b. false;",
 		},
 	}
 
