@@ -31,19 +31,17 @@ Obligations = { ( Assumption | Guarantee ) } .
 Assumption  = "assume" ":" Assertion .
 Guarantee   = "guarantee" ":" Assertion .
 
-Assertion   = Group | Expression | Assertion ⊕ Assertion | Probability ⧠ Probability .
+Assertion   = Group | Expression | !Assertion | Assertion ⊕ Assertion | Probability ⧠ Probability .
 Group       = "(" Quantifier ")" | Quantifier .
 Quantifier  = ( "forall" | "exists" ) Variables "." Assertion .
-Probability = "probability" Variables "." Expression | "probability" Variables "." Expression "|" Expression [ ⋈ Number ] .
+Probability = "probability" Variables "." Expression |
+              "probability" Variables "." Expression "|" Expression [ ⋈ Number ] .
 Expression  = GoExpression ";" .
 Variables   = Identifier { Identifier } .
 ```
 > `⊕ ∈ {&&, ||, ->, <->}`, `⧠ ∈ {<=, <, >, >=}`, `⋈ ∈ {+, -}`
 
-<<<<<<< HEAD
-- _Assumption:_ Probabilistic hyper-assertions on state excluding time and return values.  
-- _Guarantee:_ Probabilistic hyper-assertions on state including time and return values.
-=======
+_Precedence:_ <->, ->, &&, ||, !, (∀, ∃), Go, ( ... )
+
 ## Sequential Probability Ratio Test
 For the PHAs to work in practice the hypothesis testing must be done in sequence and not on a fixed sample set of states. To support this a Sequential Probability Ratio Test (SPRT) is applied. It allows for continuous monitoring of data and makes decisions about hypotheses as data is collected, rather than waiting until a predetermined sample size is reached. This also forces PHAs to have the option of returning _inconclusive_.
->>>>>>> 1ebd3aa98d28d40843a791b9613502ece5c70dc5

@@ -13,7 +13,7 @@ func (assignments *Assignments[T]) Assign(offset int, valuations ...T) {
 func (assignments *Assignments[T]) Expand(expansion int) (from, to int) {
 	length := len(*assignments)
 	*assignments = append(*assignments, make([]T, expansion)...)
-	return length, length+expansion
+	return length, length + expansion
 }
 
 func (assignments *Assignments[T]) Shrink(shrinkage int) {

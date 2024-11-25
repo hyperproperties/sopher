@@ -23,13 +23,23 @@ const (
 	// An identifier which is declared by a quantifier and not in an expression.
 	IdentifierToken
 	// Represents a golang expression which are the hyper assertion predicates.
-	ExpressionToken
+	GoExpressionToken
 	// The delimiter for golang expressions.
-	ExpressionDelimiterToken
+	GoExpressionDelimiterToken
 	// Left parenthesis "(".
-	LeftParenthesis
+	LeftParenthesisToken
 	// Left parenthesis ")".
-	RightParenthesis
+	RightParenthesisToken
+	// Logical conjunction "&&".
+	LogicalConjunctionToken
+	// Logical disjunction "||".
+	LogicalDisjunctionToken
+	// Logical Negation "!".
+	LogicalNegationToken
+	// Logical implication "->".
+	LogicalImplicationToken
+	// Logical bi-implication "<->".
+	LogicalBiimplicationToken
 	// Represents the end of the contract.
 	EndToken
 )
@@ -51,16 +61,26 @@ func (class TokenClass) String() string {
 		return "identifier"
 	case ProbabilityToken:
 		return "probability"
-	case ExpressionToken:
+	case GoExpressionToken:
 		return "expression"
 	case ScopeDelimiterToken:
 		return ":"
-	case ExpressionDelimiterToken:
+	case GoExpressionDelimiterToken:
 		return ";"
-	case LeftParenthesis:
+	case LeftParenthesisToken:
 		return "("
-	case RightParenthesis:
+	case RightParenthesisToken:
 		return ")"
+	case LogicalConjunctionToken:
+		return "&&"
+	case LogicalDisjunctionToken:
+		return "||"
+	case LogicalNegationToken:
+		return "!"
+	case LogicalImplicationToken:
+		return "->"
+	case LogicalBiimplicationToken:
+		return "<->"
 	case EndToken:
 		return "end"
 	}

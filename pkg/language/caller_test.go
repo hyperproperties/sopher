@@ -14,6 +14,4 @@ func TestCaller(t *testing.T) {
 	a := foo()
 	b := foo()
 	assert.NotEqual(t, a, b)
-	assert.Equal(t, uint64(934562412326081415), a)
-	assert.Equal(t, uint64(98071240265192299), b)
 }

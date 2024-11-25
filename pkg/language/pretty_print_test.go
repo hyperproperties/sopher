@@ -43,6 +43,11 @@ func TestPrettyPrint(t *testing.T) {
 			source:      "region Positive: guarantee: forall e. e >= 0; region Negative: guarantee: forall e. e < 0",
 			print:       "region Positive: guarantee: forall e. e >= 0; region Negative: guarantee: forall e. e < 0;",
 		},
+		{
+			description: "nested quantifiers in a guarantee",
+			source: "guarantee: forall a. true; && exists b. false",
+			print: "region: guarantee: forall a. true; && exists b. false;",
+		},
 	}
 
 	for _, tt := range tests {

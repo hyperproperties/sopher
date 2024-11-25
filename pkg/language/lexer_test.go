@@ -23,7 +23,7 @@ func TestConsumeWord(t *testing.T) {
 	str := "assume:"
 	lexer := NewLexer(iterx.Forward([]rune(str)))
 
-	found, lookahead, _ := lexer.peekWord(prefix, skip, body, suffix)
+	found, lookahead, _ := lexer.peekWords(prefix, skip, body, suffix)
 	assert.True(t, found)
 	assert.Equal(t, len(str), lookahead)
 
@@ -81,7 +81,7 @@ func TestPeekWord(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.description, func(t *testing.T) {
 			lexer := NewLexer(iterx.Forward([]rune(tt.word)))
-			found, lookahead, _ := lexer.peekWord(prefix, skip, body, postfix)
+			found, lookahead, _ := lexer.peekWords(prefix, skip, body, postfix)
 			assert.Equal(t, tt.found, found)
 			assert.Equal(t, tt.lookahead, lookahead)
 		})
@@ -127,17 +127,17 @@ assume: forall e0.in >= 0
 		RegionToken, IdentifierToken, ScopeDelimiterToken,
 		AssumeToken, ScopeDelimiterToken,
 		ForallToken, IdentifierToken, ScopeDelimiterToken,
-		ExpressionToken, ExpressionDelimiterToken,
+		GoExpressionToken, GoExpressionDelimiterToken,
 		GuaranteeToken, ScopeDelimiterToken,
 		ForallToken, IdentifierToken, ScopeDelimiterToken,
-		ExpressionToken, ExpressionDelimiterToken,
+		GoExpressionToken, GoExpressionDelimiterToken,
 		RegionToken, IdentifierToken, ScopeDelimiterToken,
 		AssumeToken, ScopeDelimiterToken,
 		ForallToken, IdentifierToken, ScopeDelimiterToken,
-		ExpressionToken, ExpressionDelimiterToken,
+		GoExpressionToken, GoExpressionDelimiterToken,
 		GuaranteeToken, ScopeDelimiterToken,
 		ExistsToken, IdentifierToken, ScopeDelimiterToken,
-		ExpressionToken, ExpressionDelimiterToken,
+		GoExpressionToken, GoExpressionDelimiterToken,
 		EndToken,
 	}
 
@@ -188,22 +188,22 @@ func TestLexClasses(t *testing.T) {
 		{
 			description: "empty expression",
 			input:       "   ;  ",
-			classes:     []TokenClass{ExpressionDelimiterToken, EndToken},
+			classes:     []TokenClass{GoExpressionDelimiterToken, EndToken},
 		},
 		{
 			description: "right parenthesis",
 			input:       "   )  ",
-			classes:     []TokenClass{RightParenthesis, EndToken},
+			classes:     []TokenClass{RightParenthesisToken, EndToken},
 		},
 		{
 			description: "left forall parenthesis",
 			input:       "   (  forall a. )",
-			classes:     []TokenClass{LeftParenthesis, ForallToken, IdentifierToken, ScopeDelimiterToken, RightParenthesis, EndToken},
+			classes:     []TokenClass{LeftParenthesisToken, ForallToken, IdentifierToken, ScopeDelimiterToken, RightParenthesisToken, EndToken},
 		},
 		{
 			description: "left forall parenthesis",
 			input:       "   (  forall a. forall b. )",
-			classes:     []TokenClass{LeftParenthesis, ForallToken, IdentifierToken, ScopeDelimiterToken, ForallToken, IdentifierToken, ScopeDelimiterToken, RightParenthesis, EndToken},
+			classes:     []TokenClass{LeftParenthesisToken, ForallToken, IdentifierToken, ScopeDelimiterToken, ForallToken, IdentifierToken, ScopeDelimiterToken, RightParenthesisToken, EndToken},
 		},
 		{
 			description: "empty input",
@@ -213,7 +213,7 @@ func TestLexClasses(t *testing.T) {
 		{
 			description: "grouped empty expression",
 			input:       "( ; )",
-			classes:     []TokenClass{LeftParenthesis, ExpressionDelimiterToken, RightParenthesis, EndToken},
+			classes:     []TokenClass{LeftParenthesisToken, GoExpressionDelimiterToken, RightParenthesisToken, EndToken},
 		},
 		{
 			description: "Single unnamed region",
@@ -283,27 +283,27 @@ func TestLexClasses(t *testing.T) {
 		{
 			description: "assume with true",
 			input:       "assume: true ;",
-			classes:     []TokenClass{AssumeToken, ScopeDelimiterToken, ExpressionToken, ExpressionDelimiterToken, EndToken},
+			classes:     []TokenClass{AssumeToken, ScopeDelimiterToken, GoExpressionToken, GoExpressionDelimiterToken, EndToken},
 		},
 		{
 			description: "assume with large expression",
 			input:       "assume: a == b && check(a, b) ;",
-			classes:     []TokenClass{AssumeToken, ScopeDelimiterToken, ExpressionToken, ExpressionDelimiterToken, EndToken},
+			classes:     []TokenClass{AssumeToken, ScopeDelimiterToken, GoExpressionToken, GoExpressionDelimiterToken, EndToken},
 		},
 		{
 			description: "guarantee with large expression",
 			input:       "guarantee: a == b && a == c ;",
-			classes:     []TokenClass{GuaranteeToken, ScopeDelimiterToken, ExpressionToken, ExpressionDelimiterToken, EndToken},
+			classes:     []TokenClass{GuaranteeToken, ScopeDelimiterToken, GoExpressionToken, GoExpressionDelimiterToken, EndToken},
 		},
 		{
 			description: "assume with expression delimiter but no expression",
 			input:       "assume: ;",
-			classes:     []TokenClass{AssumeToken, ScopeDelimiterToken, ExpressionDelimiterToken, EndToken},
+			classes:     []TokenClass{AssumeToken, ScopeDelimiterToken, GoExpressionDelimiterToken, EndToken},
 		},
 		{
 			description: "empty region, assumption, and forall",
 			input:       "region : assume : ; forall a.",
-			classes:     []TokenClass{RegionToken, ScopeDelimiterToken, AssumeToken, ScopeDelimiterToken, ExpressionDelimiterToken, ForallToken, IdentifierToken, ScopeDelimiterToken, EndToken},
+			classes:     []TokenClass{RegionToken, ScopeDelimiterToken, AssumeToken, ScopeDelimiterToken, GoExpressionDelimiterToken, ForallToken, IdentifierToken, ScopeDelimiterToken, EndToken},
 		},
 		{
 			description: "region with name newline delimiter",
@@ -313,17 +313,52 @@ func TestLexClasses(t *testing.T) {
 		{
 			description: "named region, forall, and assumption",
 			input:       "region SomeName: forall a . assume: false && true",
-			classes:     []TokenClass{RegionToken, IdentifierToken, ScopeDelimiterToken, ForallToken, IdentifierToken, ScopeDelimiterToken, AssumeToken, ScopeDelimiterToken, ExpressionToken, ExpressionDelimiterToken, EndToken},
+			classes:     []TokenClass{RegionToken, IdentifierToken, ScopeDelimiterToken, ForallToken, IdentifierToken, ScopeDelimiterToken, AssumeToken, ScopeDelimiterToken, GoExpressionToken, GoExpressionDelimiterToken, EndToken},
 		},
 		{
 			description: "multiple named regions",
 			input:       "region positive: assume: true; region negative: assume: false",
-			classes:     []TokenClass{RegionToken, IdentifierToken, ScopeDelimiterToken, AssumeToken, ScopeDelimiterToken, ExpressionToken, ExpressionDelimiterToken, RegionToken, IdentifierToken, ScopeDelimiterToken, AssumeToken, ScopeDelimiterToken, ExpressionToken, ExpressionDelimiterToken, EndToken},
+			classes:     []TokenClass{RegionToken, IdentifierToken, ScopeDelimiterToken, AssumeToken, ScopeDelimiterToken, GoExpressionToken, GoExpressionDelimiterToken, RegionToken, IdentifierToken, ScopeDelimiterToken, AssumeToken, ScopeDelimiterToken, GoExpressionToken, GoExpressionDelimiterToken, EndToken},
 		},
 		{
 			description: "multiple named regions",
 			input:       "assume: false",
-			classes:     []TokenClass{AssumeToken, ScopeDelimiterToken, ExpressionToken, ExpressionDelimiterToken, EndToken},
+			classes:     []TokenClass{AssumeToken, ScopeDelimiterToken, GoExpressionToken, GoExpressionDelimiterToken, EndToken},
+		},
+		{
+			description: "binary conjunction",
+			input:       "false; && true",
+			classes:     []TokenClass{GoExpressionToken, GoExpressionDelimiterToken, LogicalConjunctionToken, GoExpressionToken, GoExpressionDelimiterToken, EndToken},
+		},
+		{
+			description: "binary implication",
+			input:       "false; -> true",
+			classes:     []TokenClass{GoExpressionToken, GoExpressionDelimiterToken, LogicalImplicationToken, GoExpressionToken, GoExpressionDelimiterToken, EndToken},
+		},
+		{
+			description: "binary implication",
+			input:       "false; <-> true",
+			classes:     []TokenClass{GoExpressionToken, GoExpressionDelimiterToken, LogicalBiimplicationToken, GoExpressionToken, GoExpressionDelimiterToken, EndToken},
+		},
+		{
+			description: "unary negation",
+			input:       "!false",
+			classes:     []TokenClass{LogicalNegationToken, GoExpressionToken, GoExpressionDelimiterToken, EndToken},
+		},
+		{
+			description: "nested unary negation",
+			input:       "false; && !true",
+			classes:     []TokenClass{GoExpressionToken, GoExpressionDelimiterToken, LogicalConjunctionToken, LogicalNegationToken, GoExpressionToken, GoExpressionDelimiterToken, EndToken},
+		},
+		{
+			description: "negation of group",
+			input:       "!(false; -> true;)",
+			classes:     []TokenClass{LogicalNegationToken, LeftParenthesisToken, GoExpressionToken, GoExpressionDelimiterToken, LogicalImplicationToken, GoExpressionToken, GoExpressionDelimiterToken, RightParenthesisToken, EndToken},
+		},
+		{
+			description: "nested negation of alternating quantified expression",
+			input:       "forall a. a.in > 0; -> !(exists b. b.out == a.in;)",
+			classes:     []TokenClass{ForallToken, IdentifierToken, ScopeDelimiterToken, GoExpressionToken, GoExpressionDelimiterToken, LogicalImplicationToken, LogicalNegationToken, LeftParenthesisToken, ExistsToken, IdentifierToken, ScopeDelimiterToken, GoExpressionToken, GoExpressionDelimiterToken, RightParenthesisToken, EndToken},
 		},
 	}
 

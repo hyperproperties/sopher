@@ -30,5 +30,5 @@ func (stack *Stack[T]) Peek() T {
 }
 
 func (stack Stack[T]) Top() int {
-	return len(*&stack)-1
+	return len(*&stack) - 1
 }

@@ -52,7 +52,7 @@ func LexRunes(runes []rune) iter.Seq[Token] {
 	return lexer.Scan()
 }
 
-func (lexer *Lexer) peekWord(
+func (lexer *Lexer) peekWords(
 	prefix string,
 	skip func(rune) bool,
 	body func(string) bool,
@@ -81,6 +81,8 @@ func (lexer *Lexer) peekWord(
 	for ; ; lookahead++ {
 		character, ok := lexer.peek(lookahead)
 
+		// Append the current work we are building if there are
+		// no more runes or we encountered a skip.
 		if !ok || skip(character) {
 
 			// We dont have to consider suffix as it is handle after.
@@ -128,7 +130,7 @@ func (lexer *Lexer) consumeWords(
 	body func(string) bool,
 	suffixs ...string,
 ) (bool, []string) {
-	if found, lookahead, words := lexer.peekWord(prefix, skip, body, suffixs...); found {
+	if found, lookahead, words := lexer.peekWords(prefix, skip, body, suffixs...); found {
 		var builder strings.Builder
 		for idx := 0; idx < lookahead; idx++ {
 			character, ok := lexer.next()
@@ -141,6 +143,35 @@ func (lexer *Lexer) consumeWords(
 	}
 
 	return false, []string{}
+}
+
+func (lexer *Lexer) peekWord(word string) bool {
+	lookahead := 1
+	runes := []rune(word)
+	for offset := 0; offset < len(word); offset++ {
+		character, ok := lexer.peek(lookahead)
+		if !ok {
+			return false
+		}
+
+		if runes[offset] != character {
+			return false
+		}
+
+		lookahead++
+	}
+
+	return true
+}
+
+func (lexer *Lexer) consumeWord(word string) bool {
+	if found := lexer.peekWord(word); found {
+		for idx := 0; idx < len(word); idx++ {
+			lexer.next()
+		}
+		return found
+	}
+	return false
 }
 
 func (lexer *Lexer) isIdentifier(str string) bool {
@@ -271,18 +302,18 @@ func (lexer *Lexer) expression() iter.Seq[Token] {
 		for {
 			character, ok := lexer.peek(1)
 			if !ok {
-				yield(NewToken(ExpressionToken, builder.String()))
-				yield(NewToken(ExpressionDelimiterToken, ";"))
+				yield(NewToken(GoExpressionToken, builder.String()))
+				yield(NewToken(GoExpressionDelimiterToken, ";"))
 				return
 			}
 
 			lexer.next()
 
 			if character == ';' || character == '\n' {
-				if !yield(NewToken(ExpressionToken, builder.String())) {
+				if !yield(NewToken(GoExpressionToken, builder.String())) {
 					return
 				}
-				yield(NewToken(ExpressionDelimiterToken, ";"))
+				yield(NewToken(GoExpressionDelimiterToken, ";"))
 				return
 			} else {
 				builder.WriteRune(character)
@@ -315,9 +346,17 @@ func (lexer *Lexer) isSpace(r rune) bool {
 
 func (lexer *Lexer) Scan() iter.Seq[Token] {
 	keycharacters := map[rune]Token{
-		';': NewToken(ExpressionDelimiterToken, ";"),
-		'(': NewToken(LeftParenthesis, "("),
-		')': NewToken(RightParenthesis, ")"),
+		'!': NewToken(LogicalNegationToken, ";"),
+		';': NewToken(GoExpressionDelimiterToken, ";"),
+		'(': NewToken(LeftParenthesisToken, "("),
+		')': NewToken(RightParenthesisToken, ")"),
+	}
+
+	keywords := map[string]Token{
+		"&&":  NewToken(LogicalConjunctionToken, "&&"),
+		"||":  NewToken(LogicalDisjunctionToken, "||"),
+		"->":  NewToken(LogicalImplicationToken, "->"),
+		"<->": NewToken(LogicalBiimplicationToken, "<->"),
 	}
 
 	return func(yield func(Token) bool) {
@@ -326,6 +365,20 @@ func (lexer *Lexer) Scan() iter.Seq[Token] {
 			character, ok := lexer.peek(1)
 			if !ok {
 				break
+			}
+
+			isKeyword := false
+			for keyword, token := range keywords {
+				if found := lexer.consumeWord(keyword); found {
+					isKeyword = true
+					if !yield(token) {
+						return
+					}
+				}
+			}
+
+			if isKeyword {
+				continue
 			}
 
 			if token, found := keycharacters[character]; found {

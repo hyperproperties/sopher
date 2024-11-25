@@ -92,6 +92,7 @@ func (injector Injector) Contract(model string, function *dst.FuncDecl) (string,
 	parser := NewParser(LexComments(comments))
 	contract := parser.Parse()
 
+	// TODO: Support multiple regions.
 	assumptionList := make([]dst.Expr, len(contract.regions[0].assumptions))
 	guaranteeList := make([]dst.Expr, len(contract.regions[0].guarantees))
 

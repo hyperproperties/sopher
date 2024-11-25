@@ -50,7 +50,7 @@ func TestTokenClassString(t *testing.T) {
 		},
 		{
 			description: "expression",
-			class:       ExpressionToken,
+			class:       GoExpressionToken,
 			expected:    "expression",
 		},
 		{
@@ -60,23 +60,23 @@ func TestTokenClassString(t *testing.T) {
 		},
 		{
 			description: ";",
-			class:       ExpressionDelimiterToken,
+			class:       GoExpressionDelimiterToken,
 			expected:    ";",
 		},
 		{
 			description: "(",
-			class:       LeftParenthesis,
+			class:       LeftParenthesisToken,
 			expected:    "(",
 		},
 		{
 			description: ")",
-			class:       RightParenthesis,
+			class:       RightParenthesisToken,
 			expected:    ")",
 		},
 		{
-			description: "eof",
+			description: "end",
 			class:       EndToken,
-			expected:    "eof",
+			expected:    "end",
 		},
 	}
 

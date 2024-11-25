@@ -54,6 +54,29 @@ func Print(ast Node) string {
 			builder.WriteString("guarantee")
 			builder.WriteString(": ")
 			recursive(cast.assertion)
+		case BinaryExpression:
+			recursive(cast.lhs)
+			switch cast.operator {
+			case LogicalConjunction:
+				builder.WriteString(" && ")
+			case LogicalDisjunction:
+				builder.WriteString(" || ")
+			case LogicalImplication:
+				builder.WriteString(" -> ")
+			case LogicalBiimplication:
+				builder.WriteString(" <-> ")
+			default:
+				panic("unknown binary operator")
+			}
+			recursive(cast.rhs)
+		case UnaryExpression:
+			switch cast.operator {
+			case LogicalNegation:
+				builder.WriteString("!")
+			default:
+				panic("unknown unary operator")
+			}
+			recursive(cast.operand)
 		case GoExpresion:
 			builder.WriteString(cast.code)
 			builder.WriteString(";")

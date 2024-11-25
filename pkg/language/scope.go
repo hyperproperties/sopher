@@ -61,12 +61,31 @@ func (scope Scope) Depth() int {
 	return len(scope.quantifiers)
 }
 
+// Returns true if there are no quantifiers.
+func (scope Scope) IsEmpty() bool {
+	return scope.Depth() == 0
+}
+
 // Returns the number of declared variables.
 func (scope Scope) Size() (size int) {
 	for _, quantifier := range scope.quantifiers {
 		size += quantifier.size
 	}
 	return size
+}
+
+func (scope Scope) OnlyExistential() bool {
+	if scope.Depth() == 0 {
+		return false
+	}
+
+	for _, quantifier := range scope.quantifiers {
+		if quantifier.quantification == UniversalQuantification {
+			return false
+		}
+	}
+
+	return true
 }
 
 // Returns the number of declared universally quantified variables.

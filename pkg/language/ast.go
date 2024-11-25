@@ -34,6 +34,16 @@ type GoExpresion struct {
 	code string
 }
 
+type BinaryExpression struct {
+	lhs, rhs Node
+	operator BinaryOperator
+}
+
+type UnaryExpression struct {
+	operator UnaryOperator
+	operand Node
+}
+
 type PredicateExpression[T any] struct {
 	predicate func(assignments []T) bool
 }
@@ -126,5 +136,20 @@ func NewPredicateExpression[T any](predicate func(assignments []T) bool) Predica
 func NewGroup(node Node) Group {
 	return Group{
 		node: node,
+	}
+}
+
+func NewBinaryExpression(lhs Node, operator BinaryOperator, rhs Node) BinaryExpression {
+	return BinaryExpression{
+		lhs: lhs,
+		operator: operator,
+		rhs: rhs,
+	}
+}
+
+func NewUnaryExpression(operator UnaryOperator, operand Node) UnaryExpression {
+	return UnaryExpression{
+		operator: operator,
+		operand: operand,
 	}
 }

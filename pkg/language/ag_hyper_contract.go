@@ -19,7 +19,8 @@ func NewAGHyperContract[T any](
 // Checks if a set of executions from a caller satisfies the assertion given its existing model.
 func (contract *AGHyperContract[T]) Satisfies(caller uint64, assertion HyperAssertion[T], executions ...T) LiftedBoolean {
 	model := contract.models[caller]
-	explorer := NewIncrementalExplorer(model, executions)
+	domain := NewIncrementalDomain(model, executions)
+	explorer := NewIncrementalExplorer(&domain)
 	interpreter := NewInterpreter(&explorer)
 	satisfied := interpreter.Satisfies(assertion)
 	return satisfied

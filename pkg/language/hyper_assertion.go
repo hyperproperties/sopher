@@ -43,7 +43,7 @@ var (
 	_ HyperAssertion[any] = (*BinaryHyperAssertion[any])(nil)
 	_ HyperAssertion[any] = (*AllAssertion[any])(nil)
 	_ HyperAssertion[any] = (*AnyAssertion[any])(nil)
-	
+
 	_ HyperAssertionQuantitative[any] = (*UniversalHyperAssertion[any])(nil)
 	_ HyperAssertionQuantitative[any] = (*ExistentialHyperAssertion[any])(nil)
 

@@ -1,22 +1,128 @@
 package language
 
-var _ HyperAssertionVisitor[any] = (*Interpreter[any])(nil)
+var (
+	_ HyperAssertionVisitor[any]             = (*Interpreter[any])(nil)
+	_ HyperAssertionQuantitativeVisitor[any] = (*Interpreter[any])(nil)
+	_ HyperAssertionQualitativeVisitor[any]  = (*Interpreter[any])(nil)
+)
 
 type Interpreter[T any] struct {
-	explorer ExplorerV1[T]
-	scope    Scope
-	stack    Stack[LiftedBoolean]
+	scopes      Stack[Scope]
+	stack       Stack[LiftedBoolean]
+	assignments Assignments[T]
+	explorer    Explorer[T]
 }
 
-func NewInterpreter[T any](explorer ExplorerV1[T]) Interpreter[T] {
+func NewInterpreter[T any](explorer Explorer[T]) Interpreter[T] {
 	return Interpreter[T]{
+		scopes:   make(Stack[Scope], 1),
 		explorer: explorer,
 	}
 }
 
 func (interpreter *Interpreter[T]) Satisfies(assertion HyperAssertion[T]) LiftedBoolean {
-	assertion.Accept(interpreter)
+	interpreter.HyperAssertion(assertion)
 	return interpreter.stack.Pop()
+}
+
+func (interpreter *Interpreter[T]) HyperAssertion(assertion HyperAssertion[T]) {
+	switch cast := assertion.(type) {
+	case HyperAssertionQuantitative[T]:
+		cast.Quantitatively(interpreter)
+	case HyperAssertionQualitative[T]:
+		scope := interpreter.scopes.Peek()
+
+		// If there are any quantifiers in the current scope then we need to start an
+		// exploration of assignments based on the scope's sequence of quantifiers.
+		if len(scope.quantifiers) > 0 {
+			// When recursively exploring we create a new scope such that proceeding
+			// quantifiers will add variables to that scope and not the current one.
+			interpreter.scopes.Push(NewScope())
+
+			// Recursively explore whether given the explore the assertion is satisfiable.
+			satisfied := interpreter.explorer.Explore(scope, interpreter, assertion)
+			interpreter.stack.Push(satisfied)
+
+			interpreter.scopes.Pop()
+		} else {
+			cast.Qualitatively(interpreter)
+		}
+	default:
+		panic("unknown hyper assertion")
+	}
+}
+
+func (interpreter *Interpreter[T]) HyperAssertionQuantitative(assertion HyperAssertionQuantitative[T]) {
+	assertion.Quantitatively(interpreter)
+}
+
+func (interpreter *Interpreter[T]) HyperAssertionQualitative(assertion HyperAssertionQualitative[T]) {
+}
+
+func (interpreter *Interpreter[T]) UniversalHyperAssertion(assertion UniversalHyperAssertion[T]) {
+	top := interpreter.scopes.Top()
+	interpreter.scopes[top].Push(NewUniversalQuantifierScope(assertion.size))
+	interpreter.HyperAssertion(assertion.body)
+	interpreter.scopes[top].Pop()
+}
+
+func (interpreter *Interpreter[T]) ExistentialHyperAssertion(assertion ExistentialHyperAssertion[T]) {
+	top := interpreter.scopes.Top()
+	interpreter.scopes[top].Push(NewExistentialQuantifierScope(assertion.size))
+	interpreter.HyperAssertion(assertion.body)
+	interpreter.scopes[top].Pop()
+}
+
+func (interpreter *Interpreter[T]) UnaryHyperAssertion(assertion UnaryHyperAssertion[T]) {
+	operand := interpreter.Satisfies(assertion.operand)
+
+	switch assertion.operator {
+	case LogicalNegation:
+		interpreter.stack.Push(operand.Not())
+	default:
+		panic("unknown unary operator")
+	}
+}
+
+func (interpreter *Interpreter[T]) BinaryHyperAssertion(assertion BinaryHyperAssertion[T]) {
+	lhs := interpreter.Satisfies(assertion.lhs)
+
+	switch assertion.operator {
+	case LogicalConjunction:
+		if lhs.IsFalse() {
+			interpreter.stack.Push(lhs)
+		} else {
+			rhs := interpreter.Satisfies(assertion.rhs)
+			interpreter.stack.Push(lhs.And(rhs))
+		}
+	case LogicalDisjunction:
+		if lhs.IsTrue() {
+			interpreter.stack.Push(lhs)
+		} else {
+			rhs := interpreter.Satisfies(assertion.rhs)
+			interpreter.stack.Push(lhs.Or(rhs))
+		}
+	case LogicalBiimplication:
+		rhs := interpreter.Satisfies(assertion.rhs)
+		interpreter.stack.Push(LiftBoolean(lhs == rhs))
+	case LogicalImplication:
+		if lhs.IsTrue() {
+			rhs := interpreter.Satisfies(assertion.rhs)
+			interpreter.stack.Push(rhs)
+		} else {
+			interpreter.stack.Push(LiftedTrue)
+		}
+	default:
+		panic("unknown binary operator")
+	}
+}
+
+func (interpreter *Interpreter[T]) PredicateHyperAssertion(assertion PredicateHyperAssertion[T]) {
+	panic("not supported yet")
+}
+
+func (interpreter *Interpreter[T]) TrueHyperAssertion(assertion TrueHyperAssertion[T]) {
+	interpreter.stack.Push(LiftedTrue)
 }
 
 func (interpreter *Interpreter[T]) AllAssertion(assertions AllAssertion[T]) {
@@ -39,78 +145,4 @@ func (interpreter *Interpreter[T]) AnyAssertion(assertions AnyAssertion[T]) {
 	}
 
 	interpreter.stack.Push(LiftedFalse)
-}
-
-func (interpreter *Interpreter[T]) UniversalHyperAssertion(assertion UniversalHyperAssertion[T]) {
-	quantifier := NewUniversalQuantifierScope(assertion.size)
-	interpreter.scope.Push(quantifier)
-	assertion.body.Accept(interpreter)
-	interpreter.scope.Pop()
-}
-
-func (interpreter *Interpreter[T]) ExistentialHyperAssertion(assertion ExistentialHyperAssertion[T]) {
-	quantifier := NewExistentialQuantifierScope(assertion.size)
-	interpreter.scope.Push(quantifier)
-	assertion.body.Accept(interpreter)
-	interpreter.scope.Pop()
-}
-
-func (interpreter *Interpreter[T]) UnaryHyperAssertion(assertion UnaryHyperAssertion[T]) {
-	assertion.operand.Accept(interpreter)
-	operand := interpreter.stack.Pop()
-
-	switch assertion.operator {
-	case LogicalNegation:
-		interpreter.stack.Push(operand.Not())
-	default:
-		panic("unknown unary operator")
-	}
-}
-
-func (interpreter *Interpreter[T]) BinaryHyperAssertion(assertion BinaryHyperAssertion[T]) {
-	assertion.lhs.Accept(interpreter)
-	lhs := interpreter.stack.Pop()
-
-	switch assertion.operator {
-	case LogicalConjunction:
-		if lhs.IsFalse() {
-			interpreter.stack.Push(lhs)
-		} else {
-			assertion.rhs.Accept(interpreter)
-			rhs := interpreter.stack.Pop()
-			interpreter.stack.Push(lhs.And(rhs))
-		}
-	case LogicalDisjunction:
-		if lhs.IsTrue() {
-			interpreter.stack.Push(lhs)
-		} else {
-			assertion.rhs.Accept(interpreter)
-			rhs := interpreter.stack.Pop()
-			interpreter.stack.Push(lhs.Or(rhs))
-		}
-	case LogicalBiimplication:
-		assertion.rhs.Accept(interpreter)
-		rhs := interpreter.stack.Pop()
-		interpreter.stack.Push(LiftBoolean(lhs == rhs))
-	case LogicalImplication:
-		if lhs.IsTrue() {
-			assertion.rhs.Accept(interpreter)
-			rhs := interpreter.stack.Pop()
-			interpreter.stack.Push(rhs)
-		} else {
-			interpreter.stack.Push(LiftedTrue)
-		}
-	default:
-		panic("unknown binary operator")
-	}
-}
-
-func (interpreter *Interpreter[T]) PredicateHyperAssertion(assertion PredicateHyperAssertion[T]) {
-	// TODO: To support nested quantifiers the assignments must be saved for the nested quantifiers.
-	result := interpreter.explorer.Explore(interpreter.scope, assertion)
-	interpreter.stack.Push(result)
-}
-
-func (interpreter *Interpreter[T]) TrueHyperAssertion(assertion TrueHyperAssertion[T]) {
-	interpreter.stack.Push(LiftedTrue)
 }

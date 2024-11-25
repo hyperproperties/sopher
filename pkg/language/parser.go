@@ -49,6 +49,11 @@ func (parser *Parser) consume(classes ...TokenClass) (Token, bool) {
 	return Token{}, false
 }
 
+func (parser *Parser) tryConsume(classes ...TokenClass) bool {
+	_, exists := parser.consume(classes...)
+	return exists
+}
+
 func (parser *Parser) Parse() Contract {
 	return parser.contract()
 }
@@ -140,30 +145,7 @@ func (parser *Parser) guarantee() Guarantee {
 }
 
 func (parser *Parser) assertion() Node {
-	switch {
-	case parser.match(ForallToken):
-		return parser.universal()
-	case parser.match(ExistsToken):
-		return parser.existential()
-	case parser.match(ExpressionToken):
-		return parser.expression()
-	case parser.match(LeftParenthesis):
-		return parser.group()
-	}
-	panic("unknown assertion")
-}
-
-func (parser *Parser) group() Group {
-	if _, ok := parser.consume(LeftParenthesis); !ok {
-		panic("group expected left parenthesis")
-	}
-
-	assertion := parser.assertion()
-
-	if _, ok := parser.consume(RightParenthesis); !ok {
-		panic("group expected right parenthesis")
-	}
-	return NewGroup(assertion)
+	return parser.biimplication()
 }
 
 func (parser *Parser) variables() (variables []string) {
@@ -178,49 +160,105 @@ func (parser *Parser) variables() (variables []string) {
 	return variables
 }
 
-func (parser *Parser) universal() Universal {
-	if _, ok := parser.consume(ForallToken); !ok {
-		panic("forall token expected for universal quantifier")
+func (parser *Parser) biimplication() Node {
+	lhs := parser.implication()
+
+	for parser.tryConsume(LogicalBiimplicationToken) {
+		rhs := parser.implication()
+		lhs = NewBinaryExpression(lhs, LogicalBiimplication, rhs)
 	}
 
-	variables := parser.variables()
-
-	if _, ok := parser.consume(ScopeDelimiterToken); !ok {
-		panic("expected scope delimiter toke")
-	}
-
-	assertion := parser.assertion()
-
-	return NewUniversal(variables, assertion)
+	return lhs
 }
 
-func (parser *Parser) existential() Existential {
-	if _, ok := parser.consume(ExistsToken); !ok {
-		panic("forall token expected for universal quantifier")
+func (parser *Parser) implication() Node {
+	lhs := parser.conjunction()
+
+	for parser.tryConsume(LogicalImplicationToken) {
+		rhs := parser.conjunction()
+		lhs = NewBinaryExpression(lhs, LogicalImplication, rhs)
 	}
 
-	variables := parser.variables()
-
-	if _, ok := parser.consume(ScopeDelimiterToken); !ok {
-		panic("expected scope delimiter toke")
-	}
-
-	assertion := parser.assertion()
-
-	return NewExistential(variables, assertion)
+	return lhs
 }
 
-func (parser *Parser) expression() (expression Node) {
-	code, ok := parser.consume(ExpressionToken)
+func (parser *Parser) conjunction() Node {
+	lhs := parser.disjunction()
+
+	for parser.tryConsume(LogicalConjunctionToken) {
+		rhs := parser.disjunction()
+		lhs = NewBinaryExpression(lhs, LogicalConjunction, rhs)
+	}
+
+	return lhs
+}
+
+func (parser *Parser) disjunction() Node {
+	lhs := parser.negation()
+
+	for parser.tryConsume(LogicalDisjunctionToken) {
+		rhs := parser.negation()
+		lhs = NewBinaryExpression(lhs, LogicalDisjunction, rhs)
+	}
+
+	return lhs
+}
+
+func (parser *Parser) negation() Node {
+	if parser.tryConsume(LogicalNegationToken) {
+		operand := parser.negation()
+		return NewUnaryExpression(LogicalNegation, operand)
+	}
+
+	return parser.quantifier()
+}
+
+func (parser *Parser) quantifier() Node {
+	if token, ok := parser.consume(ForallToken, ExistsToken); ok {
+		variables := parser.variables()
+		if _, ok := parser.consume(ScopeDelimiterToken); !ok {
+			panic("expected scope delimiter token")
+		}
+
+		assertion := parser.quantifier()
+
+		switch token.class {
+		case ForallToken:
+			return NewUniversal(variables, assertion)
+		case ExistsToken:
+			return NewExistential(variables, assertion)
+		}
+	}
+
+	return parser.expression()
+}
+
+func (parser *Parser) expression() Node {
+	if parser.match(LeftParenthesisToken) {
+		return parser.group()
+	}
+
+	code, ok := parser.consume(GoExpressionToken)
 	if !ok {
 		panic("go expression expected expression token")
 	}
 
-	if _, ok = parser.consume(ExpressionDelimiterToken); !ok {
+	if ok = parser.tryConsume(GoExpressionDelimiterToken); !ok {
 		panic("missing expression delimiter token")
 	}
 
-	return GoExpresion{
-		code: code.lexeme,
+	return NewGoExpression(code.lexeme)
+}
+
+func (parser *Parser) group() Group {
+	if _, ok := parser.consume(LeftParenthesisToken); !ok {
+		panic("group expected left parenthesis")
 	}
+
+	assertion := parser.assertion()
+
+	if _, ok := parser.consume(RightParenthesisToken); !ok {
+		panic("group expected right parenthesis")
+	}
+	return NewGroup(assertion)
 }

@@ -52,7 +52,6 @@ var ErrInvalidPin = errors.New("invalid pin")
 
 var attempt int = 0
 
-// assume: exists e. e.attempt == 0																// The Initial Attempt
 // assume: forall e. e.attempt >= 0																// Valid Attempt
 // assume: forall e0. exists e1. e0.attempt > 1; -> e1.attempt == e0.attempt - 1				// Continous Attempts
 // assume: forall e0 e1. e0._time < e1._time; <-> e0.attempt < e1.attempt						// Attempts Increment on Consecutive Calls
