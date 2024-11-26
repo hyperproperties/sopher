@@ -21,6 +21,10 @@ func NewFiles() Files {
 	return Files{}
 }
 
+func (files Files) Length() int {
+	return len(files.paths)
+}
+
 func (files *Files) Add(path string) error {
 	info, err := os.Stat(path)
 	if err != nil {

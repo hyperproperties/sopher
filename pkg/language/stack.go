@@ -15,10 +15,17 @@ func (stack *Stack[T]) Push(elements ...T) {
 // Pops a single element to the stack and returns it.
 // If the stack is empty "len(stack) == 0" then it panics.
 func (stack *Stack[T]) Pop() T {
+	return stack.PopN(1)
+}
+
+func (stack *Stack[T]) PopN(n int) T {
+	if n <= 0 {
+		panic("cannot pop zero or negative")
+	}
 	length := len(*stack)
-	top := (*stack)[length-1]
-	(*stack) = (*stack)[0 : length-1]
-	return top
+	from := (*stack)[length-n]
+	(*stack) = (*stack)[0 : length-n]
+	return from
 }
 
 // Returns the top-most element of the stack without popping it.

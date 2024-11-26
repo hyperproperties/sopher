@@ -42,117 +42,67 @@ func (injector Injector) InputFields(function *dst.FuncDecl) (fields []*dst.Fiel
 }
 
 func (injector Injector) OutputFields(function *dst.FuncDecl) (fields []*dst.Field) {
+	if dstx.HasNamedOutputs(function) {
+		return dstx.Clones(function.Type.Results.List)
+	}
+
 	for idx, output := range function.Type.Results.List {
-		if len(output.Names) > 0 {
-			fields = append(fields, dst.Clone(output).(*dst.Field))
-		} else {
-			field := &dst.Field{
-				Names: []*dst.Ident{
-					dst.NewIdent(fmt.Sprintf("ret%v", idx)),
-				},
-				Type: dst.Clone(output.Type).(dst.Expr),
-			}
-			fields = append(fields, field)
-		}
+		field := dstx.
+			FieldS(fmt.Sprintf("ret%v", idx)).
+			Type(dstx.Clone(output.Type))
+		fields = append(fields, field)
 	}
 
 	return fields
 }
 
 func (injector Injector) DeclareModel(function *dst.FuncDecl) (string, *dst.GenDecl) {
-	name := function.Name.Name
-
 	fields := make([]*dst.Field, 0)
 	fields = append(fields, injector.InputFields(function)...)
 	fields = append(fields, injector.OutputFields(function)...)
-
-	model := &dst.StructType{
-		Fields: &dst.FieldList{
-			List: fields,
-		},
-	}
-
+	name := function.Name.Name
 	modelName := name + "_ExecutionModel"
-
-	return modelName, &dst.GenDecl{
-		Tok: token.TYPE,
-		Specs: []dst.Spec{
-			&dst.TypeSpec{
-				Name: dst.NewIdent(modelName),
-				Type: model,
-			},
-		},
-	}
+	model := dstx.DeclareStructTypeSN(modelName, fields...)
+	return modelName, model
 }
 
 func (injector Injector) Contract(model string, function *dst.FuncDecl) (string, *dst.GenDecl) {
 	name := function.Name.Name
 
+	// TODO: Support contracts suffix to  function documentation.
 	comments := function.Decs.NodeDecs.Start
 	parser := NewParser(LexComments(comments))
 	contract := parser.Parse()
 
 	// TODO: Support multiple regions.
-	assumptionList := make([]dst.Expr, len(contract.regions[0].assumptions))
-	guaranteeList := make([]dst.Expr, len(contract.regions[0].guarantees))
+	assumptions := make([]dst.Expr, len(contract.regions[0].assumptions))
+	guarantees := make([]dst.Expr, len(contract.regions[0].guarantees))
 
-	monitors := NewGoMonitorFactory("sopher", model)
+	monitors := NewAssertionFactory("sopher", model)
 	for idx, assumption := range contract.regions[0].assumptions {
-		assumptionList[idx] = monitors.Create(assumption)
+		assumptions[idx] = monitors.Create(assumption)
 	}
 	for idx, guarantee := range contract.regions[0].guarantees {
-		guaranteeList[idx] = monitors.Create(guarantee)
+		guarantees[idx] = monitors.Create(guarantee)
 	}
 
-	constructor := &dst.CallExpr{
-		Fun: &dst.SelectorExpr{
-			Sel: dst.NewIdent("NewAGHyperContract"),
-			X:   dst.NewIdent("sopher"),
-		},
-		Args: []dst.Expr{
-			&dst.CallExpr{
-				Fun: &dst.IndexExpr{
-					X: &dst.SelectorExpr{
-						Sel: dst.NewIdent("NewAllAssertion"),
-						X:   dst.NewIdent("sopher"),
-					},
-					Index: dst.NewIdent(model),
-				},
-				Args: assumptionList,
-			},
-			&dst.CallExpr{
-				Fun: &dst.IndexExpr{
-					X: &dst.SelectorExpr{
-						Sel: dst.NewIdent("NewAllAssertion"),
-						X:   dst.NewIdent("sopher"),
-					},
-					Index: dst.NewIdent(model),
-				},
-				Args: guaranteeList,
-			},
-		},
-	}
+	constructor := dstx.
+		Call(dstx.SelectS("NewAGHyperContract").FromS("sopher")).
+		Pass(
+			dstx.Call(
+				dstx.IndexS(model).Of(dstx.SelectS("NewAllAssertion").FromS("sopher")),
+			).Pass(assumptions...),
+			dstx.Call(
+				dstx.IndexS(model).Of(dstx.SelectS("NewAllAssertion").FromS("sopher")),
+			).Pass(guarantees...),
+		)
 
 	contractName := name + "_Contract"
 
-	return contractName, &dst.GenDecl{
-		Tok: token.VAR,
-		Specs: []dst.Spec{
-			&dst.ValueSpec{
-				Names: []*dst.Ident{
-					dst.NewIdent(contractName),
-				},
-				Type: &dst.IndexExpr{
-					X: &dst.SelectorExpr{
-						X:   dst.NewIdent("sopher"),
-						Sel: dst.NewIdent("AGHyperContract"),
-					},
-					Index: dst.NewIdent(model),
-				},
-				Values: []dst.Expr{constructor},
-			},
-		},
-	}
+	return contractName, dstx.
+		DeclareVariableS(contractName).
+		Type(dstx.IndexS(model).Of(dstx.SelectS("AGHyperContract").FromS("sopher"))).
+		Values(constructor)
 }
 
 func (injector Injector) DeclareWrap(function *dst.FuncDecl) *dst.AssignStmt {
@@ -177,7 +127,7 @@ func (injector Injector) DeclareCall(model string, function *dst.FuncDecl) *dst.
 }
 
 func (injector Injector) ConstructModel(model string, function *dst.FuncDecl) *dst.AssignStmt {
-	composite := dstx.ComposeS("execution")
+	composite := dstx.ComposeS(model)
 	for _, field := range function.Type.Params.List {
 		for _, name := range field.Names {
 			composite.Elements(dstx.KeyS(name.Name).ValueS(name.Name))

@@ -7,15 +7,16 @@ import (
 
 	"github.com/dave/dst"
 	"github.com/dave/dst/decorator"
+	"github.com/hyperproperties/sopher/pkg/dstx"
 )
 
 type AssertionFactory struct {
 	packageName string
 	modelName   string
-	variables   []string
+	variables   Stack[string]
 }
 
-func NewGoMonitorFactory(packageName, modelName string) AssertionFactory {
+func NewAssertionFactory(packageName, modelName string) AssertionFactory {
 	return AssertionFactory{
 		packageName: packageName,
 		modelName:   modelName,
@@ -24,124 +25,133 @@ func NewGoMonitorFactory(packageName, modelName string) AssertionFactory {
 }
 
 func (factory *AssertionFactory) Create(node Node) *dst.CallExpr {
-	switch cdst := node.(type) {
+	switch cast := node.(type) {
 	case GoExpresion:
-		return factory.NewPredicate(cdst)
+		return factory.NewPredicate(cast)
 	case Universal:
-		return factory.NewUniversal(cdst)
+		return factory.NewUniversal(cast)
 	case Existential:
-		return factory.NewExistential(cdst)
+		return factory.NewExistential(cast)
 	case Guarantee:
-		factory.variables = nil
-		return factory.Create(cdst.assertion)
+		return factory.Create(cast.assertion)
 	case Assumption:
-		factory.variables = nil
-		return factory.Create(cdst.assertion)
+		return factory.Create(cast.assertion)
+	case BinaryExpression:
+		return factory.NewBinary(cast)
+	case Group:
+		return factory.Create(cast.node)
+	case UnaryExpression:
+		return factory.NewUnary(cast)
 	}
 	panic(fmt.Sprintf("unknown node type %t", node))
 }
 
-func (factory *AssertionFactory) NewPredicate(expression GoExpresion) *dst.CallExpr {
-	// FIXME: Can accidentally define variables not in use. First we have to see what variables are in use and only define those.
-
-	var body []dst.Stmt
-
-	if len(factory.variables) > 0 {
-		// e0, e1, e2 := assignments[0], assignments[1], assignments[2]
-		var lhs, anon, rhs []dst.Expr
-		for idx, identifier := range factory.variables {
-			anon = append(anon, dst.NewIdent(identifier))
-			lhs = append(lhs, dst.NewIdent(identifier))
-			rhs = append(rhs, &dst.IndexExpr{
-				X:     dst.NewIdent("assignments"),
-				Index: &dst.BasicLit{Kind: token.INT, Value: fmt.Sprintf("%v", idx)},
-			})
-		}
-
-		executionAssignment := &dst.AssignStmt{
-			Lhs: lhs, Tok: token.DEFINE, Rhs: rhs,
-		}
-		body = append(body, executionAssignment)
-
-		// anonymous assignments for each execution variable.
-		anonymousAssignment := &dst.AssignStmt{
-			Tok: token.ASSIGN, Rhs: anon,
-		}
-		for idx := 0; idx < len(lhs); idx++ {
-			anonymousAssignment.Lhs = append(anonymousAssignment.Lhs, dst.NewIdent("_"))
-		}
-		body = append(body, anonymousAssignment)
+func (factory *AssertionFactory) NewBinary(binary BinaryExpression) *dst.CallExpr {
+	operators := map[BinaryOperator]string{
+		LogicalConjunction:   "LogicalConjunction",
+		LogicalDisjunction:   "LogicalDisjunction",
+		LogicalImplication:   "LogicalImplication",
+		LogicalBiimplication: "LogicalBiimplication",
+	}
+	var operator dst.Expr
+	if name, ok := operators[binary.operator]; ok {
+		operator = dstx.SelectS(name).FromS(factory.packageName)
+	} else {
+		panic("unknown binary operator")
 	}
 
-	// Inject the expression.
+	return dstx.Call(
+		dstx.IndexS(factory.modelName).Of(
+			dstx.SelectS("NewBinaryHyperAssertion").FromS(factory.packageName),
+		),
+	).Pass(factory.Create(binary.lhs), operator, factory.Create(binary.rhs))
+}
+
+func (factory *AssertionFactory) NewUnary(unary UnaryExpression) *dst.CallExpr {
+	operators := map[UnaryOperator]string{
+		LogicalNegation: "LogicalNegation",
+	}
+	var operator dst.Expr
+	if name, ok := operators[unary.operator]; ok {
+		operator = dstx.SelectS(name).FromS(factory.packageName)
+	} else {
+		panic("unknown unary operator")
+	}
+
+	return dstx.Call(
+		dstx.IndexS(factory.modelName).Of(
+			dstx.SelectS("NewUnaryHyperAssertion").FromS(factory.packageName),
+		),
+	).Pass(operator, factory.Create(unary.operand))
+}
+
+func (factory *AssertionFactory) NewPredicate(expression GoExpresion) *dst.CallExpr {
+	// Construct the execution variable definitions.
+	// e0, e1, e2 := assignments[0], assignments[1], assignments[2]
+	definitions := dstx.
+		DefineS(factory.variables...).
+		As(dstx.Construct[[]dst.Expr](factory.variables, func(i int, _ string) dst.Expr {
+			return dstx.Index(dstx.BasicInt(i)).OfS("assignments")
+		})...)
+
+	// Construct anonymous execution variable assignments
+	// This ensures all variables are in use and that the compiler wont complain.
+	// _, _, _ = e0, e1, e2
+	anonymous := dstx.
+		AssignS(dstx.RepeatS("_", len(factory.variables))...).
+		ToS(factory.variables...)
+
+	// Parse the code of the expression to an ast node.
 	expr, err := parser.ParseExpr(expression.code)
 	if err != nil {
 		panic(err)
 	}
-	decor := decorator.NewDecorator(token.NewFileSet())
-	code, _ := decor.DecorateNode(expr)
-	body = append(body, &dst.ReturnStmt{
-		Results: []dst.Expr{
-			code.(dst.Expr),
-		},
-	})
 
-	predicate := &dst.FuncLit{
-		Type: &dst.FuncType{
-			Params: &dst.FieldList{
-				List: []*dst.Field{
-					{
-						Names: []*dst.Ident{dst.NewIdent("assignments")},
-						Type:  &dst.ArrayType{Elt: dst.NewIdent(factory.modelName)},
-					},
-				},
-			},
-			Results: &dst.FieldList{
-				List: []*dst.Field{
-					{Type: dst.NewIdent("bool")},
-				},
-			},
-		},
-		Body: &dst.BlockStmt{
-			List: body,
-		},
+	// Convert the ast node to a decorated dst node.
+	decorator := decorator.NewDecorator(token.NewFileSet())
+	node, err := decorator.DecorateNode(expr)
+	if err != nil {
+		panic(err)
 	}
 
-	return &dst.CallExpr{
-		Fun: &dst.SelectorExpr{
-			X:   dst.NewIdent(factory.packageName),
-			Sel: dst.NewIdent("NewPredicateHyperAssertion"),
-		},
-		Args: []dst.Expr{predicate},
-	}
+	// Create the return statement of the hyper assertion predicate.
+	returnStmt := dstx.Return(node.(dst.Expr))
+
+	// Construct the predicate of the hyper assertion.
+	predicate := dstx.Function(
+		dstx.
+			TakingN(dstx.FieldS("assignments").
+				Type(dstx.SliceTypeS(factory.modelName))).
+			ResultsN(dstx.Field().TypeS("bool")),
+		dstx.Block(definitions, anonymous, returnStmt),
+	)
+
+	return dstx.
+		Call(dstx.SelectS("NewPredicateHyperAssertion").
+			FromS(factory.packageName)).
+		Pass(predicate)
 }
 
 func (factory *AssertionFactory) NewUniversal(universal Universal) *dst.CallExpr {
-	factory.variables = append(factory.variables, universal.variables...)
-	call := &dst.CallExpr{
-		Fun: &dst.SelectorExpr{
-			X:   dst.NewIdent(factory.packageName),
-			Sel: dst.NewIdent("NewUniversalHyperAssertion"),
-		},
-		Args: []dst.Expr{
-			&dst.BasicLit{Kind: token.INT, Value: fmt.Sprintf("%v", len(universal.variables))},
-			factory.Create(universal.assertion),
-		},
-	}
+	factory.variables.Push(universal.variables...)
+	call := dstx.Call(
+		dstx.SelectS("NewUniversalHyperAssertion").FromS(factory.packageName),
+	).Pass(
+		dstx.BasicInt(len(universal.variables)),
+		factory.Create(universal.assertion),
+	)
+	factory.variables.PopN(len(universal.variables))
 	return call
 }
 
 func (factory *AssertionFactory) NewExistential(existential Existential) *dst.CallExpr {
-	factory.variables = append(factory.variables, existential.variables...)
-	call := &dst.CallExpr{
-		Fun: &dst.SelectorExpr{
-			X:   dst.NewIdent(factory.packageName),
-			Sel: dst.NewIdent("NewExistentialHyperAssertion"),
-		},
-		Args: []dst.Expr{
-			&dst.BasicLit{Kind: token.INT, Value: fmt.Sprintf("%v", len(existential.variables))},
-			factory.Create(existential.assertion),
-		},
-	}
+	factory.variables.Push(existential.variables...)
+	call := dstx.Call(
+		dstx.SelectS("NewExistentialHyperAssertion").FromS(factory.packageName),
+	).Pass(
+		dstx.BasicInt(len(existential.variables)),
+		factory.Create(existential.assertion),
+	)
+	factory.variables.PopN(len(existential.variables))
 	return call
 }

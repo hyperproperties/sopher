@@ -16,7 +16,7 @@ func FieldS(names ...string) *FieldBuilder {
 	return Field(Idents(names...)...)
 }
 
-func (builder *FieldBuilder) Type(t *dst.Ident) *dst.Field {
+func (builder *FieldBuilder) Type(t dst.Expr) *dst.Field {
 	return &dst.Field{
 		Names: builder.names,
 		Type:  t,

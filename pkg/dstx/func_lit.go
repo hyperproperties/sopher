@@ -28,8 +28,8 @@ func FunctionOf(function *dst.FuncDecl) *dst.FuncLit {
 	return &dst.FuncLit{
 		Type: &dst.FuncType{
 			TypeParams: TypeParams,
-			Params: Params,
-			Results: Results,
+			Params:     Params,
+			Results:    Results,
 		},
 		Body: dst.Clone(function.Body).(*dst.BlockStmt),
 	}
