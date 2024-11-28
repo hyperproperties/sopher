@@ -102,11 +102,11 @@ const LogicalNegation = UnaryOperator(iota)
 
 func (operator UnaryOperator) String() string {
 	switch operator {
-	case LogicalNegation: return "¬"
+	case LogicalNegation:
+		return "¬"
 	}
 	panic("unknown unary operator")
 }
-
 
 type UnaryHyperAssertion[T any] struct {
 	operator UnaryOperator
@@ -139,10 +139,14 @@ const (
 
 func (operator BinaryOperator) String() string {
 	switch operator {
-	case LogicalConjunction: return "∧"
-	case LogicalDisjunction: return "∨"
-	case LogicalImplication: return "→"
-	case LogicalBiimplication: return "↔"
+	case LogicalConjunction:
+		return "∧"
+	case LogicalDisjunction:
+		return "∨"
+	case LogicalImplication:
+		return "→"
+	case LogicalBiimplication:
+		return "↔"
 	}
 	panic("unknown binary operator")
 }

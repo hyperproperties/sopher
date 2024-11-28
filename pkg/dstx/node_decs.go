@@ -1,6 +1,19 @@
 package dstx
 
-import "github.com/dave/dst"
+import (
+	"strings"
+
+	"github.com/dave/dst"
+)
+
+func SingleComment(comment string) string {
+	return "// " + comment
+}
+
+func MultiComment(comments ...string) string {
+	comment := strings.Join(comments, "\n")
+	return "/* " + comment + " */"
+}
 
 func NewLineBefore[T dst.Node](node T) T {
 	node.Decorations().Before = dst.NewLine
@@ -22,7 +35,6 @@ func AppendStart[T dst.Node](node T, comments ...string) T {
 	node.Decorations().Start.Append(comments...)
 	return node
 }
-
 
 func PrependStart[T dst.Node](node T, comments ...string) T {
 	node.Decorations().Start.Prepend(comments...)

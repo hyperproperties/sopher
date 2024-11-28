@@ -238,13 +238,16 @@ func (parser *Parser) expression() Node {
 		return parser.group()
 	}
 
+	// Starting delimiter is optional.
+	parser.tryConsume(GoExpressionDelimiterToken)
+
 	code, ok := parser.consume(GoExpressionToken)
 	if !ok {
 		panic("go expression expected expression token")
 	}
 
-	if ok = parser.tryConsume(GoExpressionDelimiterToken); !ok {
-		panic("missing expression delimiter token")
+	if ok := parser.tryConsume(GoExpressionDelimiterToken); !ok {
+		panic("missing ending expression delimiter token")
 	}
 
 	return NewGoExpression(code.lexeme)

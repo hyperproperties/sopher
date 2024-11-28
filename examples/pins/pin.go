@@ -71,3 +71,35 @@ func CheckContinouslyChangingPIN(pin Pin) bool {
 func ChangePIN(counter uint, pin Pin) bool {
 	panic("not implemented yet")
 }
+
+// contract:
+//
+//	assume: forall e. e.attempt >= 0
+//	assume: forall e0. e0.attempt > 1; -> exists e1. e1.attempt == e0.attempt - 1
+//	assume: forall e0 e1. e0._time < e1._time; <-> e0.attempt < e1.attempt
+//	assume: forall e0 e1. e0._id != e1._id; <-> e0.attempt != e1.attempt
+//	guarantee: exists e. e.ret0 && e.ret1 == nil
+//	guarantee: forall e. e.ret0; -> e.ret1 == nil
+//	guarantee: forall e. e.attempt > 3; -> !e.re0 && e.ret1 != nil
+//	guarantee: forall e. !e.pin.Valid(); -> !e.ret0 && e.ret1 == nil
+//	guarantee: forall e. e.ret0; <-> e.attempt <= 3 && SlicesEqual(e.pin, []uint{3, 1, 4, 1})
+//	guarantee: forall e0 e1. e0.ret0 && e1.ret0; -> SlicesEqual(e0.pin, e1.pin)
+//	guarantee: forall e0 e1. math.Abs(e0._duration - e1._duration) <= 0.1 * time.Second
+//	assignable: attempt
+/*func (pin Pin) CheckV2() (bool, error) {
+	if attempt < 0 {
+		panic("a negative attempt cannot exist")
+	}
+
+	attempt++
+
+	if attempt > 3 {
+		return false, nil
+	}
+
+	if !pin.Valid() {
+		return false, ErrInvalidPin
+	}
+
+	return SlicesEqual(pin, []uint{3, 1, 4, 1}), nil
+}*/

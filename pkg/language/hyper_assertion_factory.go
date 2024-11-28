@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"go/parser"
 	"go/token"
+	"strings"
 
 	"github.com/dave/dst"
 	"github.com/dave/dst/decorator"
@@ -60,13 +61,17 @@ func (factory *AssertionFactory) NewBinary(binary BinaryExpression) *dst.CallExp
 		panic("unknown binary operator")
 	}
 
-	dstx.AppendEnd(operator, fmt.Sprintf("/* %s */", binary.operator.String()))
+	dstx.AppendEnd(operator, dstx.MultiComment(binary.operator.String()))
 
 	call := dstx.Call(
 		dstx.IndexS(factory.modelName).Of(
 			dstx.SelectS("NewBinaryHyperAssertion").FromS(factory.packageName),
 		),
-	).Pass(factory.Create(binary.lhs), operator, factory.Create(binary.rhs))
+	).Pass(
+		dstx.NewLineAround(factory.Create(binary.lhs)),
+		dstx.NewLineAround(operator),
+		dstx.NewLineAround(factory.Create(binary.rhs)),
+	)
 
 	return dstx.NewLineAround(call)
 }
@@ -82,13 +87,16 @@ func (factory *AssertionFactory) NewUnary(unary UnaryExpression) *dst.CallExpr {
 		panic("unknown unary operator")
 	}
 
-	dstx.AppendEnd(operator, fmt.Sprintf("/* %s */", unary.operator.String()))
+	dstx.AppendEnd(operator, dstx.MultiComment(unary.operator.String()))
 
 	call := dstx.Call(
 		dstx.IndexS(factory.modelName).Of(
 			dstx.SelectS("NewUnaryHyperAssertion").FromS(factory.packageName),
 		),
-	).Pass(operator, factory.Create(unary.operand))
+	).Pass(
+		dstx.NewLineAround(operator),
+		dstx.NewLineAround(factory.Create(unary.operand)),
+	)
 
 	return dstx.NewLineAround(call)
 }
@@ -143,6 +151,8 @@ func (factory *AssertionFactory) NewPredicate(expression GoExpresion) *dst.CallE
 			FromS(factory.packageName)).
 		Pass(dstx.NewLineAround(predicate))
 
+	dstx.AppendStart(call, dstx.SingleComment(expression.code))
+
 	return dstx.NewLineAround(call)
 }
 
@@ -155,7 +165,10 @@ func (factory *AssertionFactory) NewUniversal(universal Universal) *dst.CallExpr
 		factory.Create(universal.assertion),
 	)
 	factory.variables.PopN(len(universal.variables))
-	
+
+	comment := fmt.Sprintf("∀ %s.", strings.Join(universal.variables, " "))
+	dstx.AppendStart(call, dstx.SingleComment(comment))
+
 	return dstx.NewLineAround(call)
 }
 
@@ -168,6 +181,9 @@ func (factory *AssertionFactory) NewExistential(existential Existential) *dst.Ca
 		factory.Create(existential.assertion),
 	)
 	factory.variables.PopN(len(existential.variables))
-	
+
+	comment := fmt.Sprintf("∃ %s.", strings.Join(existential.variables, " "))
+	dstx.AppendStart(call, dstx.SingleComment(comment))
+
 	return dstx.NewLineAround(call)
 }

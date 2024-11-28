@@ -1,0 +1,59 @@
+package main
+
+import "errors"
+
+func SlicesEqual[S1, S2 ~[]E, E comparable](s1 S1, s2 S2) bool {
+	if len(s1) != len(s2) {
+		return false
+	}
+
+	for idx := range s1 {
+		elem1, elem2 := s1[idx], s2[idx]
+		if elem1 != elem2 {
+			return false
+		}
+	}
+
+	return true
+}
+
+type Pin []uint
+
+func NewPin(pin ...uint) Pin {
+	return pin
+}
+
+func (pin Pin) Valid() bool {
+	return len(pin) == 4 &&
+		pin[0] <= 9 && pin[1] <= 9 && pin[2] <= 9 && pin[3] <= 9
+}
+
+var ErrInvalidPin = errors.New("invalid pin")
+
+type PinChecker struct {
+	attempt int
+}
+
+// assume: forall e. e.checker.attempt >= 0
+// guarantee: forall e. (e.ret0; -> e.ret1 == nil;)
+// guarantee: forall e. (;!e.pin.Valid(); -> ;!e.ret0;)
+// guarantee: forall e. ;e.checker.attempt > 3 && !e.ret0;
+// guarantee: forall e. (e.ret0; <-> e.checker.attempt <= 3 && SlicesEqual(e.pin, []uint{3, 1, 4, 1});)
+// guarantee: forall e0 e1. (e0.ret0 && e1.ret0; -> SlicesEqual(e0.pin, e1.pin);)
+func (checker PinChecker) Check(pin Pin) (bool, error) {
+	if checker.attempt < 0 {
+		panic("a negative attempt cannot exist")
+	}
+
+	checker.attempt++
+
+	if checker.attempt > 3 {
+		return false, nil
+	}
+
+	if !pin.Valid() {
+		return false, ErrInvalidPin
+	}
+
+	return SlicesEqual(pin, []uint{3, 1, 4, 1}), nil
+}

@@ -85,6 +85,10 @@ func IncrementalPermutations(sub, slice, added int) iter.Seq[[]int] {
 		return func(yield func([]int) bool) {}
 	}
 
+	if slice == added {
+		return Permutations(sub, added)
+	}
+
 	return func(yield func([]int) bool) {
 		// Idea: Permutations of added with "0" as a marker for when to insert the existing set.
 		// Underlying: Permutation of added elements.

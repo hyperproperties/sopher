@@ -56,7 +56,11 @@ func (domain *IncrementalDomain[T]) Rollback() {
 // Updates an entry in the model. This does not work for
 // elements in the increment which has not been committed yet.
 func (domain *IncrementalDomain[T]) Update(index int, value T) {
-	domain.set[index] = value
+	if index >= len(domain.set) {
+		domain.increment[index-len(domain.set)] = value
+	} else {
+		domain.set[index] = value
+	}
 }
 
 // Returns the model of the incremental domain which is the set of executions

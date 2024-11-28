@@ -13,7 +13,7 @@ func TestParseAssertion(t *testing.T) {
 		tokens      []Token
 		assertion   Node
 	}{
-		/*{
+		{
 			description: "true;",
 			tokens: []Token{
 				NewToken(GoExpressionToken, "true"),
@@ -239,28 +239,20 @@ func TestParseAssertion(t *testing.T) {
 					),
 				),
 			),
-		},*/
+		},
 		{
-			description: "forall e. !(e.low > 0 && e.high > 0;)",
+			description: "forall e. ;!(e.low > 0 && e.high > 0);",
 			tokens: []Token{
 				NewToken(ForallToken, "forall"),
 				NewToken(IdentifierToken, "e"),
 				NewToken(ScopeDelimiterToken, "."),
 				NewToken(GoExpressionDelimiterToken, ";"),
-				NewToken(LogicalNegationToken, "!"),
-				NewToken(LeftParenthesisToken, "("),
-				NewToken(GoExpressionToken, "e.low > 0 && e.high > 0"),
-				NewToken(RightParenthesisToken, ")"),
+				NewToken(GoExpressionToken, "!(e.low > 0 && e.high > 0)"),
 				NewToken(GoExpressionDelimiterToken, ";"),
 			},
 			assertion: NewUniversal(
 				[]string{"e"},
-				NewUnaryExpression(
-					LogicalNegation,
-					NewGroup(
-						NewGoExpression("e.low > 0 && e.high > 0"),
-					),
-				),
+				NewGoExpression("!(e.low > 0 && e.high > 0)"),
 			),
 		},
 	}

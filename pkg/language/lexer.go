@@ -304,7 +304,11 @@ func (lexer *Lexer) expression() iter.Seq[Token] {
 		for {
 			character, ok := lexer.peek(1)
 			if !ok {
-				yield(NewToken(GoExpressionToken, builder.String()))
+				if builder.Len() > 0 {
+					if !yield(NewToken(GoExpressionToken, builder.String())) {
+						return
+					}
+				}
 				yield(NewToken(GoExpressionDelimiterToken, ";"))
 				return
 			}
@@ -312,8 +316,10 @@ func (lexer *Lexer) expression() iter.Seq[Token] {
 			lexer.next()
 
 			if character == ';' || character == '\n' {
-				if !yield(NewToken(GoExpressionToken, builder.String())) {
-					return
+				if builder.Len() > 0 {
+					if !yield(NewToken(GoExpressionToken, builder.String())) {
+						return
+					}
 				}
 				yield(NewToken(GoExpressionDelimiterToken, ";"))
 				return
@@ -348,8 +354,7 @@ func (lexer *Lexer) isSpace(r rune) bool {
 
 func (lexer *Lexer) Scan() iter.Seq[Token] {
 	keycharacters := map[rune]Token{
-		'!': NewToken(LogicalNegationToken, ";"),
-		';': NewToken(GoExpressionDelimiterToken, ";"),
+		'!': NewToken(LogicalNegationToken, "!"),
 		'(': NewToken(LeftParenthesisToken, "("),
 		')': NewToken(RightParenthesisToken, ")"),
 	}
@@ -439,6 +444,14 @@ func (lexer *Lexer) Scan() iter.Seq[Token] {
 					return
 				}
 			} else {
+				// Check for optional ";" as starting delimiter.
+				if character == ';' {
+					lexer.next()
+					if !yield(NewToken(GoExpressionDelimiterToken, ";")) {
+						return
+					}
+				}
+
 				expression := lexer.expression()
 				if !iterx.Pipe(expression, yield) {
 					return
