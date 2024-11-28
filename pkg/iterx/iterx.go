@@ -22,6 +22,26 @@ func Backward[S ~[]E, E any](slice S) iter.Seq[E] {
 	}
 }
 
+func Keys[K, V any](iterator iter.Seq2[K, V]) iter.Seq[K] {
+	return func(yield func(K) bool) {
+		for k := range iterator {
+			if !yield(k) {
+				return
+			}
+		}
+	}
+}
+
+func Values[K, V any](iterator iter.Seq2[K, V]) iter.Seq[V] {
+	return func(yield func(V) bool) {
+		for _, v := range iterator {
+			if !yield(v) {
+				return
+			}
+		}
+	}
+}
+
 func Permutations(sub, slice int) iter.Seq[[]int] {
 	if sub < 0 {
 		panic("permutations of negative length subslices")

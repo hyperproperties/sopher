@@ -100,6 +100,14 @@ type UnaryOperator uint8
 
 const LogicalNegation = UnaryOperator(iota)
 
+func (operator UnaryOperator) String() string {
+	switch operator {
+	case LogicalNegation: return "¬"
+	}
+	panic("unknown unary operator")
+}
+
+
 type UnaryHyperAssertion[T any] struct {
 	operator UnaryOperator
 	operand  HyperAssertion[T]
@@ -128,6 +136,16 @@ const (
 	LogicalImplication
 	LogicalBiimplication
 )
+
+func (operator BinaryOperator) String() string {
+	switch operator {
+	case LogicalConjunction: return "∧"
+	case LogicalDisjunction: return "∨"
+	case LogicalImplication: return "→"
+	case LogicalBiimplication: return "↔"
+	}
+	panic("unknown binary operator")
+}
 
 type BinaryHyperAssertion[T any] struct {
 	lhs, rhs HyperAssertion[T]

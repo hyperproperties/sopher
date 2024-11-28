@@ -1,5 +1,7 @@
 package language
 
+// TODO: Skip tokens until "contract:"
+
 import (
 	"fmt"
 	"iter"

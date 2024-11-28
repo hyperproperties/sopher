@@ -3,6 +3,8 @@ package filesx
 import (
 	"errors"
 	"os"
+	"path/filepath"
+	"strings"
 )
 
 func Move(source, destination string) error {
@@ -26,4 +28,12 @@ func Exists(path string) bool {
 		return false
 	}
 	return true
+}
+
+func Seperate(path string) (dir, name, ext string) {
+	dir = filepath.Dir(path)
+	base := filepath.Base(path)
+	ext = filepath.Ext(base)
+	name = strings.TrimSuffix(base, ext)
+	return
 }

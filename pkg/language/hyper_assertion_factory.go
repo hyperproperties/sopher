@@ -60,11 +60,15 @@ func (factory *AssertionFactory) NewBinary(binary BinaryExpression) *dst.CallExp
 		panic("unknown binary operator")
 	}
 
-	return dstx.Call(
+	dstx.AppendEnd(operator, fmt.Sprintf("/* %s */", binary.operator.String()))
+
+	call := dstx.Call(
 		dstx.IndexS(factory.modelName).Of(
 			dstx.SelectS("NewBinaryHyperAssertion").FromS(factory.packageName),
 		),
 	).Pass(factory.Create(binary.lhs), operator, factory.Create(binary.rhs))
+
+	return dstx.NewLineAround(call)
 }
 
 func (factory *AssertionFactory) NewUnary(unary UnaryExpression) *dst.CallExpr {
@@ -78,11 +82,15 @@ func (factory *AssertionFactory) NewUnary(unary UnaryExpression) *dst.CallExpr {
 		panic("unknown unary operator")
 	}
 
-	return dstx.Call(
+	dstx.AppendEnd(operator, fmt.Sprintf("/* %s */", unary.operator.String()))
+
+	call := dstx.Call(
 		dstx.IndexS(factory.modelName).Of(
 			dstx.SelectS("NewUnaryHyperAssertion").FromS(factory.packageName),
 		),
 	).Pass(operator, factory.Create(unary.operand))
+
+	return dstx.NewLineAround(call)
 }
 
 func (factory *AssertionFactory) NewPredicate(expression GoExpresion) *dst.CallExpr {
@@ -123,13 +131,19 @@ func (factory *AssertionFactory) NewPredicate(expression GoExpresion) *dst.CallE
 			TakingN(dstx.FieldS("assignments").
 				Type(dstx.SliceTypeS(factory.modelName))).
 			ResultsN(dstx.Field().TypeS("bool")),
-		dstx.Block(definitions, anonymous, returnStmt),
+		dstx.Block(
+			dstx.NewLineAround(definitions),
+			dstx.NewLineAround(anonymous),
+			dstx.NewLineAround(returnStmt),
+		),
 	)
 
-	return dstx.
+	call := dstx.
 		Call(dstx.SelectS("NewPredicateHyperAssertion").
 			FromS(factory.packageName)).
-		Pass(predicate)
+		Pass(dstx.NewLineAround(predicate))
+
+	return dstx.NewLineAround(call)
 }
 
 func (factory *AssertionFactory) NewUniversal(universal Universal) *dst.CallExpr {
@@ -141,7 +155,8 @@ func (factory *AssertionFactory) NewUniversal(universal Universal) *dst.CallExpr
 		factory.Create(universal.assertion),
 	)
 	factory.variables.PopN(len(universal.variables))
-	return call
+	
+	return dstx.NewLineAround(call)
 }
 
 func (factory *AssertionFactory) NewExistential(existential Existential) *dst.CallExpr {
@@ -153,5 +168,6 @@ func (factory *AssertionFactory) NewExistential(existential Existential) *dst.Ca
 		factory.Create(existential.assertion),
 	)
 	factory.variables.PopN(len(existential.variables))
-	return call
+	
+	return dstx.NewLineAround(call)
 }

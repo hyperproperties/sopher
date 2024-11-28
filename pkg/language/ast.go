@@ -1,6 +1,48 @@
 package language
 
+import "fmt"
+
 type Node interface{}
+
+type File struct {
+	pkg       string
+	path      string
+	functions []FunctionContract
+}
+
+func NewFile(pkg, path string, functions []FunctionContract) File {
+	return File{
+		pkg:       pkg,
+		path:      path,
+		functions: functions,
+	}
+}
+
+type FunctionContract struct {
+	name     string
+	index    uint
+	contract Contract
+}
+
+func NewFunctionContract(name string, index uint, contract Contract) FunctionContract {
+	return FunctionContract{
+		name:     name,
+		index:    index,
+		contract: contract,
+	}
+}
+
+func (function FunctionContract) ModelName() string {
+	return fmt.Sprintf("%s_%v_Model", function.name, function.index)
+}
+
+func (function FunctionContract) CallName() string {
+	return fmt.Sprintf("%s_%v_Call", function.name, function.index)
+}
+
+func (function FunctionContract) ContractName() string {
+	return fmt.Sprintf("%s_%v_Contract", function.name, function.index)
+}
 
 type Contract struct {
 	regions []Region

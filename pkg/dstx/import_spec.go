@@ -11,6 +11,10 @@ func ImportS(name, path string) *dst.ImportSpec {
 	return Import(Ident(name), BasicString(strconv.Quote(path)))
 }
 
+func AnonymousImportS(path string) *dst.ImportSpec {
+	return Import(nil, BasicString(strconv.Quote(path)))
+}
+
 func Import(name *dst.Ident, path *dst.BasicLit) *dst.ImportSpec {
 	return &dst.ImportSpec{
 		Name: name,
@@ -32,4 +36,20 @@ func FindImportDeclaration(declarations []dst.Decl) *dst.GenDecl {
 		}
 	}
 	return nil
+}
+
+func ImportIntoS(file *dst.File, imports map[string]string) {
+	specs := make([]dst.Spec, 0)
+	for name, path := range imports {
+		importSpec := ImportS(name, path)
+		file.Imports = append(file.Imports, importSpec)
+		specs = append(specs, importSpec)
+	}
+
+	if declaration := FindImportDeclaration(file.Decls); declaration != nil {
+		declaration.Specs = append(declaration.Specs, specs...)
+	} else {
+		declaration := DeclareImports(specs...)
+		file.Decls = append([]dst.Decl{declaration}, file.Decls...)
+	}
 }

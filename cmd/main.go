@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/hyperproperties/sopher/pkg/iterx"
 	"github.com/hyperproperties/sopher/pkg/language"
 )
 
@@ -17,8 +18,10 @@ func main() {
 	}
 
 	switch os.Args[1] {
-	case "inject":
-		inject()
+	case "instrument":
+		instrument()
+	case "tests":
+		tests()
 	case "restore":
 		restore()
 	case "help":
@@ -41,13 +44,14 @@ func help() {
 		sopher <command> [arguments]
 
 Commands:
-	inject		injects the contracts into functions with contracts
-	restore		restores injected source files to the original ones
+	instrument		instruments the function with its contract
+	tests			generates tests for the functions with contracts
+	restore			restores injected source files to the original ones
 
 Use "go help <command>" for more information about a command.`)
 }
 
-func files(path string) language.Files {
+func files(path string) *language.Files {
 	if path == "" {
 		wd, err := os.Getwd()
 		if err != nil {
@@ -62,10 +66,10 @@ func files(path string) language.Files {
 		log.Fatalln("Failed adding", path, "to contracts", err)
 	}
 
-	return files
+	return &files
 }
 
-func inject() {
+func instrument() {
 	flags := flag.NewFlagSet("inject", flag.ExitOnError)
 
 	var path string
@@ -73,9 +77,22 @@ func inject() {
 
 	flags.Parse(os.Args[2:])
 
-	files := files(path)
-	injector := language.NewGoInjector()
-	injector.Files(files.Iterator())
+	instrumentor := language.NewInstrumentor()
+	instrumentor.Files(files(path).Iterator())
+}
+
+func tests() {
+	flags := flag.NewFlagSet("inject", flag.ExitOnError)
+
+	var path string
+	flags.StringVar(&path, "path", "", "the path to go source files")
+
+	flags.Parse(os.Args[2:])
+
+	parser := language.NewFileParser()
+	files := parser.Files(files(path).Iterator())
+	generator := language.NewTestCodeGenerator()
+	generator.Files(iterx.Values(files))
 }
 
 func restore() {
@@ -87,6 +104,6 @@ func restore() {
 	flags.Parse(os.Args[2:])
 
 	files := files(path)
-	injector := language.NewGoInjector()
+	injector := language.NewInstrumentor()
 	injector.Restore(files.Iterator())
 }
